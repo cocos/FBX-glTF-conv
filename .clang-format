@@ -1,0 +1,8 @@
+
+BasedOnStyle: LLVM
+
+AllowShortFunctionsOnASingleLine: false
+
+CommentPragmas:  '^/ .+'
+
+BinPackParameters: false
