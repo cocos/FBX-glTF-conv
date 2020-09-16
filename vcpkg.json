@@ -1,0 +1,17 @@
+{
+    "name": "fbx-gltf-conv",
+    "version-string": "1.0.0-alpha.0",
+    "maintainers": ["Leslie Leigh <leslieleigh@outlook.com>"],
+    "description": "A FBX to glTF file format converter.",
+    "license": "MIT",
+    "supports": "windows & osx",
+    "dependencies": [
+        "libxml2",
+        "zlib",
+        "nlohmann-json",
+        "fmt",
+        "cppcodec",
+        "range-v3",
+        "clipp"
+    ]
+}

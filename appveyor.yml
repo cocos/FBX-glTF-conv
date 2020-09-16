@@ -1,0 +1,13 @@
+
+version: 1.0.0-alpha.{build}
+
+image:
+#  - Visual Studio 2019
+  - macOS-Mojave
+platform:
+  - x64
+build_script:
+  - ps: ./CI/AppveyorBuild.ps1
+artifacts:
+  - path: '*.zip'
+    name: archive

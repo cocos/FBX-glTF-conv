@@ -1,15 +1,17 @@
 
 #pragma once
 
-#include <fbxsdk.h>
-#include <map>
-#include <optional>
 #include <bee/Convert/FbxMeshVertexLayout.h>
 #include <bee/Convert/GLTFSamplerHash.h>
 #include <bee/Convert/NeutralType.h>
 #include <bee/Converter.h>
 #include <bee/GLTFBuilder.h>
 #include <bee/GLTFUtilities.h>
+#include <bee/polyfills/filesystem.h>
+#include <fbxsdk.h>
+#include <list>
+#include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -277,23 +279,20 @@ private:
   std::optional<GLTFBuilder::XXIndex>
   _convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_);
 
-  template <typename T_>
-  static T_ _getMetalnessFromSpecular(const T_ *specular_);
-
   std::optional<GLTFBuilder::XXIndex>
   _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertFileTexture(const fbxsdk::FbxFileTexture &fbx_texture_);
 
-  static bool _hasValidImageExtension(const std::filesystem::path &path_);
+  static bool _hasValidImageExtension(const bee::filesystem::path &path_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertTextureSource(const fbxsdk::FbxFileTexture &fbx_texture_);
 
   std::optional<std::string> _searchImage(const std::string_view name_);
 
-  std::optional<std::string> _processPath(const std::filesystem::path &path_);
+  std::optional<std::string> _processPath(const bee::filesystem::path &path_);
 
   static std::string _getMimeTypeFromExtension(std::string_view ext_name_);
 

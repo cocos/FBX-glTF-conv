@@ -1,10 +1,11 @@
 
 #pragma once
 
-#include <optional>
 #include <bee/BEE_API.h>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace bee {
 class GLTFWriter {
