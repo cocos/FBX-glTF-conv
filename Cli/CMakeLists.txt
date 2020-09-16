@@ -20,7 +20,10 @@ target_link_libraries(FBX-glTF-conv PRIVATE clipp::clipp)
 
 if (APPLE)
     # Set @rpath so executable can find .dylib
-    set_target_properties(FBX-glTF-conv PROPERTIES LINK_FLAGS "-Wl,-rpath,./")
+    # See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
+    # and also https://stackoverflow.com/a/61020959
+    # May be we should use "$ORIGIN"(escape the dollar sign?) on other Unix-like OS?
+    set_target_properties (FBX-glTF-conv PROPERTIES INSTALL_RPATH "@executable_path")
 endif ()
 
 add_custom_command(TARGET FBX-glTF-conv POST_BUILD
