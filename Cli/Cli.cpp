@@ -1,11 +1,12 @@
 
+#include "ReadCliArgs.h"
 #include <array>
 #include <bee/Converter.h>
 #include <bee/polyfills/filesystem.h>
-#include <clipp.h>
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <optional>
 #include <string>
 
 std::string relativeUriBetweenPath(const bee::filesystem::path &from_,
@@ -22,54 +23,24 @@ std::string relativeUriBetweenPath(const bee::filesystem::path &from_,
 int main(int argc_, char *argv_[]) {
   namespace fs = bee::filesystem;
 
-  std::string inputFile;
-  std::string outFile;
-  std::string fbmDir;
-  bee::ConvertOptions convertOptions;
-
-  auto cli = (
-
-      clipp::value("input file", inputFile),
-
-      clipp::option("--out").set(outFile).doc(
-          "The output path to the .gltf or .glb file. Defaults to "
-          "`<working-directory>/<FBX-filename-basename>.gltf`"),
-
-      clipp::option("--fbm-dir")
-          .set(fbmDir)
-          .doc("The directory to store the embedded media."),
-
-      clipp::option("--no-flip-v")
-          .set(convertOptions.noFlipV)
-          .doc("Do not flip V texture coordinates."),
-
-      clipp::option("--animation-bake-rate")
-          .set(convertOptions.animationBakeRate)
-          .doc("Animation bake rate(in FPS)."),
-
-      clipp::option("--suspected-animation-duration-limit")
-          .set(convertOptions.suspectedAnimationDurationLimit)
-          .doc("The suspected animation duration limit.")
-
-  );
-
-  if (!clipp::parse(argc_, argv_, cli)) {
-    std::cout << make_man_page(cli, argv_[0]);
+  auto cliOptions = beecli::readCliArgs(argc_, argv_);
+  if (!cliOptions) {
     return -1;
   }
-  if (!fbmDir.empty()) {
-    convertOptions.fbmDir = fbmDir;
+
+  if (!cliOptions->fbmDir.empty()) {
+    cliOptions->convertOptions.fbmDir = cliOptions->fbmDir;
   }
 
-  if (outFile.empty()) {
-    const auto inputFilePath = fs::path{inputFile};
+  if (cliOptions->outFile.empty()) {
+    const auto inputFilePath = fs::path{cliOptions->inputFile};
     const auto inputBaseNameNoExt = inputFilePath.stem().string();
     auto outFilePath = fs::current_path() / (inputBaseNameNoExt + "_glTF") /
                        (inputBaseNameNoExt + ".gltf");
     fs::create_directories(outFilePath.parent_path());
-    outFile = outFilePath.string();
+    cliOptions->outFile = outFilePath.string();
   }
-  convertOptions.out = outFile;
+  cliOptions->convertOptions.out = cliOptions->outFile;
 
   class MyWriter : public bee::GLTFWriter {
   public:
@@ -104,29 +75,31 @@ int main(int argc_, char *argv_[]) {
     bool _dataUriForBuffers;
   };
 
-  MyWriter writer{inputFile, outFile};
-  convertOptions.useDataUriForBuffers = false;
-  convertOptions.writer = &writer;
+  MyWriter writer{cliOptions->inputFile, cliOptions->outFile};
+  cliOptions->convertOptions.useDataUriForBuffers = false;
+  cliOptions->convertOptions.writer = &writer;
 
   const auto imageSearchDepth = 2;
   const std::array<const char *, 4> searchDirName = {"texture", "textures",
                                                      "material", "materials"};
-  auto searchParentDir = fs::path(inputFile).parent_path();
+  auto searchParentDir = fs::path(cliOptions->inputFile).parent_path();
   for (int i = 0; i < imageSearchDepth && !searchParentDir.empty();
        ++i, searchParentDir = searchParentDir.parent_path()) {
-    convertOptions.textureSearch.locations.push_back(searchParentDir.string());
+    cliOptions->convertOptions.textureSearch.locations.push_back(
+        searchParentDir.string());
     for (auto &name : searchDirName) {
-      convertOptions.textureSearch.locations.push_back(
+      cliOptions->convertOptions.textureSearch.locations.push_back(
           (searchParentDir / name).string());
     }
   }
 
-  convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
+  cliOptions->convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
 
   try {
-    auto glTFJson = bee::convert(inputFile, convertOptions);
+    auto glTFJson =
+        bee::convert(cliOptions->inputFile, cliOptions->convertOptions);
 
-    std::ofstream glTFJsonOStream(outFile);
+    std::ofstream glTFJsonOStream(cliOptions->outFile);
     glTFJsonOStream.exceptions(std::ios::badbit | std::ios::failbit);
     glTFJsonOStream << glTFJson;
     glTFJsonOStream.flush();
