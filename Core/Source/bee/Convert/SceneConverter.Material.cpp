@@ -2,6 +2,10 @@
 #include <bee/Convert/SceneConverter.h>
 
 namespace bee {
+template <typename T_> static T_ getMetalnessFromSpecular(const T_ *specular_) {
+  return static_cast<T_>(specular_[0] > 0.5 ? 1 : 0);
+}
+
 std::optional<GLTFBuilder::XXIndex>
 SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_) {
   if (fbx_material_.Is<fbxsdk::FbxSurfaceLambert>()) {
@@ -12,8 +16,8 @@ SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_) {
   }
 }
 
-std::optional<GLTFBuilder::XXIndex>
-SceneConverter::_convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_) {
+std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
+    fbxsdk::FbxSurfaceLambert &fbx_material_) {
   const auto materialName = std::string{fbx_material_.GetName()};
 
   const auto fbxTransparentColor = fbx_material_.TransparentColor.Get();
@@ -108,10 +112,5 @@ SceneConverter::_convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_
   auto glTFMaterailIndex =
       _glTFBuilder.add(&fx::gltf::Document::materials, std::move(glTFMaterial));
   return glTFMaterailIndex;
-}
-
-template <typename T_>
-static T_ SceneConverter::_getMetalnessFromSpecular(const T_ *specular_) {
-  return static_cast<T_>(specular_[0] > 0.5 ? 1 : 0);
 }
 } // namespace bee

@@ -6,13 +6,13 @@
 #if defined(_MSC_VER)
 #undef snprintf
 #endif
-#include <cppcodec/base64_default_rfc4648.hpp>
-#include <filesystem>
-#include <fmt/format.h>
-#include <nlohmann/json.hpp>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/ObjectDestroyer.h>
 #include <bee/Converter.h>
+#include <bee/polyfills/filesystem.h>
+#include <cppcodec/base64_default_rfc4648.hpp>
+#include <fmt/format.h>
+#include <nlohmann/json.hpp>
 
 namespace bee {
 class Converter {
@@ -39,7 +39,7 @@ public:
   }
 
   std::string BEE_API convert(std::string_view file_,
-                               const ConvertOptions &options_) {
+                              const ConvertOptions &options_) {
     auto fbxScene = _import(file_);
     FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
     GLTFBuilder glTFBuilder;
@@ -139,7 +139,7 @@ private:
 };
 
 std::string BEE_API convert(std::string_view file_,
-                             const ConvertOptions &options_) {
+                            const ConvertOptions &options_) {
   Converter converter(options_);
   return converter.convert(file_, options_);
 }

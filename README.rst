@@ -1,5 +1,5 @@
 
-# FBX in(the name of) glTF
+# FBX-glTF-conv
 
 This is a FBX to glTF file format converter.
 

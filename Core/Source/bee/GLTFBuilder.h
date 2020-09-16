@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <bee/GLTFUtilities.h>
 #include <cstddef>
 #include <fx/gltf.h>
 #include <list>

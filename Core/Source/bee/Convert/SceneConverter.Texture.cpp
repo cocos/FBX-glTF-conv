@@ -1,8 +1,8 @@
 
-#include <cppcodec/base64_default_rfc4648.hpp>
-#include <filesystem>
-#include <fmt/format.h>
 #include <bee/Convert/SceneConverter.h>
+#include <bee/polyfills/filesystem.h>
+#include <cppcodec/base64_default_rfc4648.hpp>
+#include <fmt/format.h>
 
 namespace bee {
 std::optional<GLTFBuilder::XXIndex>
@@ -44,7 +44,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTexture(
 }
 
 bool SceneConverter::_hasValidImageExtension(
-    const std::filesystem::path &path_) {
+    const bee::filesystem::path &path_) {
   const auto extName = path_.extension().string();
   const std::array<std::string, 3> validExtensions{".jpg", ".jpeg", ".png"};
   return std::any_of(validExtensions.begin(), validExtensions.end(),
@@ -59,7 +59,7 @@ bool SceneConverter::_hasValidImageExtension(
 
 std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
     const fbxsdk::FbxFileTexture &fbx_texture_) {
-  namespace fs = std::filesystem;
+  namespace fs = bee::filesystem;
 
   const auto imageName = fbx_texture_.GetName();
   const auto imageFileName = _convertFileName(fbx_texture_.GetFileName());
@@ -118,7 +118,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
 
 std::optional<std::string>
 SceneConverter::_searchImage(const std::string_view name_) {
-  namespace fs = std::filesystem;
+  namespace fs = bee::filesystem;
   for (const auto &location : _options.textureSearch.locations) {
     std::error_code err;
     fs::directory_iterator dirIter{fs::path{location}, err};
@@ -127,8 +127,8 @@ SceneConverter::_searchImage(const std::string_view name_) {
     }
     for (const auto &dirEntry : dirIter) {
       if (dirEntry.is_regular_file()) {
-        if (auto path = dirEntry.path();
-            path.stem() == name_ && _hasValidImageExtension(path)) {
+        if (auto path = dirEntry.path(); path.stem() == std::string{name_} &&
+                                         _hasValidImageExtension(path)) {
           return path.string();
         }
       }
@@ -138,8 +138,8 @@ SceneConverter::_searchImage(const std::string_view name_) {
 }
 
 std::optional<std::string>
-SceneConverter::_processPath(const std::filesystem::path &path_) {
-  namespace fs = std::filesystem;
+SceneConverter::_processPath(const bee::filesystem::path &path_) {
+  namespace fs = bee::filesystem;
 
   const auto getOutDirNormalized = [this]() {
     return fs::path(_options.out).parent_path().lexically_normal();

@@ -1,16 +1,16 @@
 
 #include <array>
+#include <bee/Converter.h>
+#include <bee/polyfills/filesystem.h>
 #include <clipp.h>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <numeric>
-#include <bee/Converter.h>
 #include <string>
 
-std::string relativeUriBetweenPath(std::filesystem::path &from_,
-                                   std::filesystem::path &to_) {
-  namespace fs = std::filesystem;
+std::string relativeUriBetweenPath(const bee::filesystem::path &from_,
+                                   const bee::filesystem::path &to_) {
+  namespace fs = bee::filesystem;
   auto rel = to_.lexically_relative(from_);
   return std::accumulate(rel.begin(), rel.end(), std::string{},
                          [](const std::string &init_, const fs::path &seg_) {
@@ -20,7 +20,7 @@ std::string relativeUriBetweenPath(std::filesystem::path &from_,
 }
 
 int main(int argc_, char *argv_[]) {
-  namespace fs = std::filesystem;
+  namespace fs = bee::filesystem;
 
   std::string inputFile;
   std::string outFile;
@@ -81,9 +81,11 @@ int main(int argc_, char *argv_[]) {
                                               std::size_t size_,
                                               std::uint32_t index_,
                                               bool multi_) {
-      auto glTFOutBaseName = fs::path(_outFile).stem();
-      auto bufferOutPath =
-          fs::path(_outFile).parent_path() /
+      const auto outFilePath = fs::path{std::string{_outFile}};
+      const auto glTFOutBaseName = outFilePath.stem();
+      const auto glTFOutDir = outFilePath.parent_path();
+      const auto bufferOutPath =
+          glTFOutDir /
           (multi_ ? (glTFOutBaseName.string() + std::to_string(index_) + ".bin")
                   : (glTFOutBaseName.string() + ".bin"));
       fs::create_directories(bufferOutPath.parent_path());
@@ -93,8 +95,7 @@ int main(int argc_, char *argv_[]) {
       ofs.write(reinterpret_cast<const char *>(data_), size_);
       ofs.flush();
 
-      auto outFileDir = fs::path(_outFile).parent_path();
-      return relativeUriBetweenPath(outFileDir, bufferOutPath);
+      return relativeUriBetweenPath(glTFOutDir, bufferOutPath);
     }
 
   private:

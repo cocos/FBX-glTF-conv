@@ -1,9 +1,8 @@
 
-#include <filesystem>
-#include <fmt/format.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <bee/UntypedVertex.h>
+#include <fmt/format.h>
 
 namespace bee {
 template <typename Dst_, typename Src_, std::size_t N_>
@@ -16,7 +15,7 @@ static void untypedVertexCopy(std::byte *out_, const std::byte *in_) {
 }
 
 template <typename Dst_, typename Src_>
-static bee::SceneConverter::VertexBulk::ChannelWriter
+static std::function<void(std::byte *out_, const std::byte *in_)>
 makeUntypedVertexCopyN(std::size_t n_) {
   return [n_](std::byte *out_, const std::byte *in_) {
     auto in = reinterpret_cast<const Src_ *>(in_);
