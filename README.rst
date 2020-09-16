@@ -20,32 +20,31 @@ But Cocos team has to find another approach because:
 Features
 ====================
 
-- [ ] Geometries
+- 🗸 Geometries
 
-  - [ ] Geometries
+  - 🗸 Meshes
 
-- [ ] Materials
+- 🗸 Materials
 
-  - [X] Lambert and Phong
+  - 🗸 Lambert and Phong
 
-- [ ] Textures and images
+- 🗸 Textures and images
 
-  - [X] Image formats: JPEG, PNG
+  - 🗸 Image formats: JPEG, PNG
 
-- [ ] Skinning
+- 🗸 Skinning
 
-- [X] Blend shapes(Morph targets)
+- 🗸 Blend shapes(Morph targets)
 
-- [ ] Animations
+- 🗸 Animations
 
-  - [X] Node transform animations(Skeletal animations)
+  - 🗸 Node transform animations(Skeletal animations)
 
-  - [X] Blend shape animations(Morph animations)
+  - 🗸 Blend shape animations(Morph animations)
 
-- [ ] Scene hierarchy
+- 🗸 Scene hierarchy
 
-  - [ ] FBX specific node inherit types: `RrSs`, `Rrs`
-
+  - 🧐 FBX specific node inherit types: `RrSs`, `Rrs`
 
 Thanks
 ====================
