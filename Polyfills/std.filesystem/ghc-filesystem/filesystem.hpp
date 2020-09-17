@@ -200,6 +200,10 @@
 #error "Can't raise unicode errors whith exception support disabled"
 #endif
 
+#if defined(__cpp_lib_string_view) || (__cplusplus >= 201703L)
+#define GHC_WITH_STRING_VIEW
+#endif
+
 namespace ghc {
 namespace filesystem {
 
@@ -271,7 +275,7 @@ public:
     struct _is_basic_string<std::basic_string<CharT, Traits, Alloc>> : std::true_type
     {
     };
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
     template <class CharT>
     struct _is_basic_string<std::basic_string_view<CharT>> : std::true_type
     {
@@ -334,7 +338,7 @@ public:
     // 30.10.8.4.4 concatenation
     path& operator+=(const path& x);
     path& operator+=(const string_type& x);
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
     path& operator+=(std::basic_string_view<value_type> x);
 #endif
     path& operator+=(const value_type* x);
@@ -381,7 +385,7 @@ public:
     // 30.10.8.4.8 compare
     int compare(const path& p) const noexcept;
     int compare(const string_type& s) const;
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
     int compare(std::basic_string_view<value_type> s) const;
 #endif
     int compare(const value_type* s) const;
@@ -1603,7 +1607,7 @@ inline std::string toUtf8(const charT* unicodeString)
     return toUtf8(std::basic_string<charT, std::char_traits<charT>>(unicodeString));
 }
 
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
 template <typename charT>
 inline std::string toUtf8(std::basic_string_view<charT> unicodeString)
 {
@@ -1696,7 +1700,7 @@ inline path::path(const std::u32string& source, format fmt)
     postprocess_path_with_format(_path, fmt);
 }
 
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
 template <>
 inline path::path(const std::string_view& source, format fmt)
 {
@@ -2405,7 +2409,7 @@ GHC_INLINE path& path::operator+=(const string_type& x)
     return concat(x);
 }
 
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
 GHC_INLINE path& path::operator+=(std::basic_string_view<value_type> x)
 {
     return concat(x);
@@ -2665,7 +2669,7 @@ GHC_INLINE int path::compare(const string_type& s) const
     return native().compare(path(s).native());
 }
 
-#ifdef __cpp_lib_string_view
+#ifdef GHC_WITH_STRING_VIEW
 GHC_INLINE int path::compare(std::basic_string_view<value_type> s) const
 {
     return native().compare(path(s).native());
