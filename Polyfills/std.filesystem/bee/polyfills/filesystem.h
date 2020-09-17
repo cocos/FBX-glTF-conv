@@ -21,12 +21,21 @@
 #ifndef __cpp_lib_string_view
 #if __cplusplus >= 202002L // >= C++ 20
 #define __cpp_lib_string_view 201803L
+#define BEE_POLYFILLS_STD_FILESYSTEM_DEFINE_CPP_LIB_STRING_VIEW
 #elif __cplusplus >= 201703L // >= C++ 17
 #define __cpp_lib_string_view 201606L
+#define BEE_POLYFILLS_STD_FILESYSTEM_DEFINE_CPP_LIB_STRING_VIEW
 #endif
 #endif
 
 #include <ghc-filesystem/filesystem.hpp>
+
+// Restore..
+#ifdef BEE_POLYFILLS_STD_FILESYSTEM_DEFINE_CPP_LIB_STRING_VIEW
+#undef BEE_POLYFILLS_STD_FILESYSTEM_DEFINE_CPP_LIB_STRING_VIEW
+#undef __cpp_lib_string_view
+#endif
+
 namespace bee::filesystem {
 using namespace ghc::filesystem;
 } // namespace bee::filesystem
