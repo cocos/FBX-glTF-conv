@@ -3,7 +3,7 @@ version: 1.0.0-alpha.{build}
 
 image:
 #  - Visual Studio 2019
-  - macOS-Mojave
+  - macOS
 platform:
   - x64
 build_script:
