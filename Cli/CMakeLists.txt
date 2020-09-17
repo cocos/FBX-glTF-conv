@@ -3,7 +3,7 @@ include ("${CMAKE_CURRENT_LIST_DIR}/../Core/CMakeLists.txt")
 
 add_executable (FBX-glTF-conv "${CMAKE_CURRENT_LIST_DIR}/Cli.cpp" "${CMAKE_CURRENT_LIST_DIR}/ReadCliArgs.cpp")
 
-set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 17)
+set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 20)
 
 target_include_directories (FBX-glTF-conv PRIVATE ${BeeCoreIncludeDirectories})
 

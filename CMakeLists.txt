@@ -2,6 +2,8 @@
 
 project ("FBX-glTF-conv")
 
-option(POLYFILLS_STD_FILESYSTEM "Use Polyfill <filesystem>" OFF)
+option (POLYFILLS_STD_FILESYSTEM "Use Polyfill <filesystem>" OFF)
+
+# set (POLYFILLS_STD_FILESYSTEM ON)
 
 include ("./Cli/CMakeLists.txt")
