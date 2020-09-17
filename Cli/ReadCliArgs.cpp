@@ -4,11 +4,14 @@
 #include <type_traits>
 
 // https://github.com/muellan/clipp/issues/53
+// clang is not completed: https://libcxx.llvm.org/cxx2a_status.html
+#if _MSC_VER
 namespace std {
 template <class> struct result_of;
 template <class F, class... ArgTypes>
 struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
 } // namespace std
+#endif
 #include <clipp.h>
 
 #include <iostream>
