@@ -9,9 +9,9 @@
 
 namespace beecli {
 struct CliArgs {
-  std::string inputFile;
-  std::string outFile;
-  std::string fbmDir;
+  std::u8string inputFile;
+  std::u8string outFile;
+  std::u8string fbmDir;
   bee::ConvertOptions convertOptions;
 };
 

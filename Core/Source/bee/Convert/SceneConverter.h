@@ -22,7 +22,7 @@ public:
   SceneConverter(fbxsdk::FbxManager &fbx_manager_,
                  fbxsdk::FbxScene &fbx_scene_,
                  const ConvertOptions &options_,
-                 std::string_view fbx_file_name_,
+                 std::u8string_view fbx_file_name_,
                  GLTFBuilder &glTF_builder_);
 
   void convert();
@@ -173,7 +173,7 @@ private:
   fbxsdk::FbxGeometryConverter _fbxGeometryConverter;
   fbxsdk::FbxScene &_fbxScene;
   const ConvertOptions &_options;
-  const std::string _fbxFileName;
+  const std::u8string _fbxFileName;
   fbxsdk::FbxTime::EMode _animationTimeMode = fbxsdk::FbxTime::EMode::eFrames24;
   std::map<fbxsdk::FbxUInt64, GLTFBuilder::XXIndex> _fbxNodeMap;
   std::vector<fbxsdk::FbxNode *> _anncouncedfbxNodes;
@@ -292,9 +292,9 @@ private:
 
   std::optional<std::string> _searchImage(const std::string_view name_);
 
-  std::optional<std::string> _processPath(const bee::filesystem::path &path_);
+  std::optional<std::u8string> _processPath(const bee::filesystem::path &path_);
 
-  static std::string _getMimeTypeFromExtension(std::string_view ext_name_);
+  static std::u8string _getMimeTypeFromExtension(std::u8string_view ext_name_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertTextureSampler(const fbxsdk::FbxFileTexture &fbx_texture_);

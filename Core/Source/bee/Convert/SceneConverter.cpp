@@ -1,14 +1,14 @@
 
-#include <fmt/format.h>
-#include <iostream>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
+#include <fmt/format.h>
+#include <iostream>
 
 namespace bee {
 SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
                                fbxsdk::FbxScene &fbx_scene_,
                                const ConvertOptions &options_,
-                               std::string_view fbx_file_name_,
+                               std::u8string_view fbx_file_name_,
                                GLTFBuilder &glTF_builder_)
     : _glTFBuilder(glTF_builder_), _fbxManager(fbx_manager_),
       _fbxScene(fbx_scene_), _options(options_), _fbxFileName(fbx_file_name_),
