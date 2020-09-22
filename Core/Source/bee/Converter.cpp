@@ -24,7 +24,8 @@ public:
     }
 
     if (options_.fbmDir) {
-      std::string fbmDirCStr{*options_.fbmDir};
+      std::string fbmDirCStr{options_.fbmDir->data(),
+                             options_.fbmDir->data() + options_.fbmDir->size()};
       auto &xRefManager = _fbxManager->GetXRefManager();
       if (!xRefManager.AddXRefProject(
               fbxsdk::FbxXRefManager::sEmbeddedFileProject,
@@ -38,7 +39,7 @@ public:
     _fbxManager->Destroy();
   }
 
-  std::string BEE_API convert(std::string_view file_,
+  std::string BEE_API convert(std::u8string_view file_,
                               const ConvertOptions &options_) {
     auto fbxScene = _import(file_);
     FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
@@ -66,8 +67,11 @@ public:
         const auto &bufferData = glTFBuildResult.buffers[iBuffer];
         std::optional<std::string> uri;
         if (!options_.useDataUriForBuffers) {
-          uri = glTFWriter->buffer(bufferData.data(), bufferData.size(),
-                                   iBuffer, nBuffers != 1);
+          auto u8Uri = glTFWriter->buffer(bufferData.data(), bufferData.size(),
+                                          iBuffer, nBuffers != 1);
+          if (u8Uri) {
+            uri = std::string{u8Uri->begin(), u8Uri->end()};
+          }
         }
         if (!uri) {
           auto base64Data = cppcodec::base64_rfc4648::encode(
@@ -99,14 +103,14 @@ private:
     std::cout << message_ << "\n";
   }
 
-  FbxScene *_import(std::string_view file_) {
+  FbxScene *_import(std::u8string_view file_) {
     auto ioSettings = fbxsdk::FbxIOSettings::Create(_fbxManager, IOSROOT);
     _fbxManager->SetIOSettings(ioSettings);
 
     auto fbxImporter = fbxsdk::FbxImporter::Create(_fbxManager, "");
     FbxObjectDestroyer fbxImporterDestroyer{fbxImporter};
 
-    auto inputFileCStr = std::string(file_);
+    auto inputFileCStr = std::string{file_.data(), file_.data() + file_.size()};
     auto importInitOk = fbxImporter->Initialize(inputFileCStr.c_str(), -1,
                                                 _fbxManager->GetIOSettings());
     if (!importInitOk) {
@@ -138,7 +142,7 @@ private:
   }
 };
 
-std::string BEE_API convert(std::string_view file_,
+std::string BEE_API convert(std::u8string_view file_,
                             const ConvertOptions &options_) {
   Converter converter(options_);
   return converter.convert(file_, options_);

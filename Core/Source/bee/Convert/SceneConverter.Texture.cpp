@@ -93,7 +93,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
   if (imageFilePath) {
     auto reference = _processPath(*imageFilePath);
     if (reference) {
-      glTFImage.uri = *reference;
+      glTFImage.uri.assign(reference->begin(), reference->end());
     }
   }
 
@@ -137,7 +137,7 @@ SceneConverter::_searchImage(const std::string_view name_) {
   return {};
 }
 
-std::optional<std::string>
+std::optional<std::u8string>
 SceneConverter::_processPath(const bee::filesystem::path &path_) {
   namespace fs = bee::filesystem;
 
@@ -149,22 +149,19 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
 
   const auto toRelative = [getOutDirNormalized](const fs::path &to_) {
     const auto outDir = getOutDirNormalized();
-    const auto relativePath = to_.lexically_relative(outDir);
-    auto relativeUrl = relativePath.string();
-    std::replace(relativeUrl.begin(), relativeUrl.end(), '\\', '/');
-    return relativeUrl;
+    return to_.lexically_relative(outDir).generic_u8string();
   };
 
   switch (_options.pathMode) {
   case ConvertOptions::PathMode::absolute: {
-    return normalizedPath.string();
+    return normalizedPath.u8string();
   }
   case ConvertOptions::PathMode::relative: {
     return toRelative(normalizedPath);
   }
   case ConvertOptions::PathMode::strip: {
     const auto fileName = normalizedPath.filename();
-    return fileName.string();
+    return fileName.u8string();
   }
   case ConvertOptions::PathMode::copy: {
     const auto outDir = getOutDirNormalized();
@@ -195,21 +192,31 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
     ifstream.read(fileContent.data(), fileContent.size());
     const auto base64Data = cppcodec::base64_rfc4648::encode(
         reinterpret_cast<const char *>(fileContent.data()), fileContent.size());
+    const auto base64DataU8 =
+        std::u8string_view{reinterpret_cast<const char8_t *>(base64Data.data()),
+                           base64Data.size()};
     const auto mimeType =
-        _getMimeTypeFromExtension(normalizedPath.extension().string());
-    return fmt::format("data:{};base64,{}", mimeType, base64Data);
+        _getMimeTypeFromExtension(normalizedPath.extension().u8string());
+    return fmt::format(u8"data:{};base64,{}", mimeType, base64DataU8);
   }
   case ConvertOptions::PathMode::prefer_relative: {
     const auto relativePath =
         normalizedPath.lexically_relative(getOutDirNormalized());
-    auto relativePathStr = relativePath.string();
+    auto relativePathStr = relativePath.u8string();
     const auto dotdot = std::string_view{".."};
-    if (relativePath.is_relative() &&
-        !relativePathStr.compare(0, dotdot.size(), dotdot.data())) {
-      std::replace(relativePathStr.begin(), relativePathStr.end(), '\\', '/');
+    const auto startsWithDotDot = [](const fs::path &path_) {
+      for (const auto part : path_) {
+        if (path_ == "..") {
+          return true;
+        }
+        break;
+      }
+      return false;
+    };
+    if (relativePath.is_relative() && !startsWithDotDot(relativePath)) {
       return relativePathStr;
     } else {
-      return normalizedPath.string();
+      return normalizedPath.u8string();
     }
     break;
   }
@@ -221,17 +228,18 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
   return {};
 }
 
-std::string
-SceneConverter::_getMimeTypeFromExtension(std::string_view ext_name_) {
-  auto lower = std::string{ext_name_};
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](char c_) { return static_cast<char>(std::tolower(c_)); });
-  if (lower == ".jpg" || lower == ".jpeg") {
-    return "image/jpeg";
-  } else if (lower == ".png") {
-    return "image/png";
+std::u8string
+SceneConverter::_getMimeTypeFromExtension(std::u8string_view ext_name_) {
+  auto lower = std::u8string{ext_name_};
+  std::transform(lower.begin(), lower.end(), lower.begin(), [](auto c_) {
+    return static_cast<decltype(c_)>(std::tolower(c_));
+  });
+  if (lower == u8".jpg" || lower == u8".jpeg") {
+    return u8"image/jpeg";
+  } else if (lower == u8".png") {
+    return u8"image/png";
   } else {
-    return "application/octet-stream";
+    return u8"application/octet-stream";
   }
 }
 

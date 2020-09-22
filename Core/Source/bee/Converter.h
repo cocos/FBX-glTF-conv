@@ -10,20 +10,20 @@
 namespace bee {
 class GLTFWriter {
 public:
-  virtual std::optional<std::string> buffer(const std::byte *data_,
-                                            std::size_t size_,
-                                            std::uint32_t index_,
-                                            bool multi_) {
+  virtual std::optional<std::u8string> buffer(const std::byte *data_,
+                                              std::size_t size_,
+                                              std::uint32_t index_,
+                                              bool multi_) {
     return {};
   }
 };
 
 struct ConvertOptions {
-  std::string out;
+  std::u8string out;
 
   GLTFWriter *writer = nullptr;
 
-  std::optional<std::string_view> fbmDir;
+  std::optional<std::u8string_view> fbmDir;
 
   bool useDataUriForBuffers = true;
 
@@ -35,7 +35,7 @@ struct ConvertOptions {
       60 * 10; // I think 10 minutes is extraordinary enough...
 
   struct TextureSearch {
-    std::vector<std::string> locations;
+    std::vector<std::u8string> locations;
   } textureSearch;
 
   enum class PathMode {
@@ -81,7 +81,7 @@ struct ConvertOptions {
   bool export_blend_shape_animation = true;
 };
 
-std::string BEE_API convert(std::string_view file_,
-                             const ConvertOptions &options_);
+std::string BEE_API convert(std::u8string_view file_,
+                            const ConvertOptions &options_);
 
 } // namespace bee

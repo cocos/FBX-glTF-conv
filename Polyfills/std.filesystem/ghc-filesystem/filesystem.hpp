@@ -246,6 +246,12 @@ public:
 #endif
     using string_type = std::basic_string<value_type>;
     using path_helper_base<value_type>::preferred_separator;
+
+#ifdef __cpp_char8_t
+    using _u8_string_type = std::u8string;
+#else
+    using _u8_string_type = std::string;
+#endif
     
     // 30.10.10.1 enumeration format
     /// The path format in wich the constructor argument is given.
@@ -280,12 +286,12 @@ public:
                                                          std::is_same<wchar_t const*, typename std::decay<T>::type>::value || std::is_same<wchar_t*, typename std::decay<T>::type>::value,
                                                      path>::type;
     template <typename T>
-    using path_type_EcharT = typename std::enable_if<std::is_same<T, char>::value || std::is_same<T, char16_t>::value || std::is_same<T, char32_t>::value, path>::type;
+    using path_type_EcharT = typename std::enable_if<std::is_same<T, char>::value || std::is_same<T, char8_t>::value || std::is_same<T, char16_t>::value || std::is_same<T, char32_t>::value, path>::type;
 #else
     template <typename T>
     using path_from_string = typename std::enable_if<_is_basic_string<T>::value || std::is_same<char const*, typename std::decay<T>::type>::value || std::is_same<char*, typename std::decay<T>::type>::value, path>::type;
     template <typename T>
-    using path_type_EcharT = typename std::enable_if<std::is_same<T, char>::value || std::is_same<T, char16_t>::value || std::is_same<T, char32_t>::value || std::is_same<T, wchar_t>::value, path>::type;
+    using path_type_EcharT = typename std::enable_if<std::is_same<T, char>::value || std::is_same<T, char8_t>::value || std::is_same<T, char16_t>::value || std::is_same<T, char32_t>::value || std::is_same<T, wchar_t>::value, path>::type;
 #endif
     // 30.10.8.4.1 constructors and destructor
     path() noexcept;
@@ -358,7 +364,8 @@ public:
     std::basic_string<EcharT, traits, Allocator> string(const Allocator& a = Allocator()) const;
     std::string string() const;
     std::wstring wstring() const;
-    std::string u8string() const;
+    _u8_string_type u8string() const;
+    std::string _u8string() const;
     std::u16string u16string() const;
     std::u32string u32string() const;
 
@@ -367,7 +374,7 @@ public:
     std::basic_string<EcharT, traits, Allocator> generic_string(const Allocator& a = Allocator()) const;
     const std::string& generic_string() const;  // this is different from the standard, that returns by value
     std::wstring generic_wstring() const;
-    std::string generic_u8string() const;
+    _u8_string_type generic_u8string() const;
     std::u16string generic_u16string() const;
     std::u32string generic_u32string() const;
 
@@ -1596,6 +1603,13 @@ inline std::string toUtf8(const charT* unicodeString)
     return toUtf8(std::basic_string<charT, std::char_traits<charT>>(unicodeString));
 }
 
+#ifdef __cpp_lib_string_view
+template <typename charT>
+inline std::string toUtf8(std::basic_string_view<charT> unicodeString)
+{
+  return toUtf8(std::basic_string<charT, std::char_traits<charT>>(unicodeString));
+}
+#endif
 }  // namespace detail
 
 #ifdef GHC_EXPAND_IMPL
@@ -1788,9 +1802,9 @@ GHC_INLINE void create_symlink(const path& target_name, const path& new_symlink,
 #pragma GCC diagnostic pop
 #endif
     if (api_call) {
-        if (api_call(detail::fromUtf8<std::wstring>(new_symlink.u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name.u8string()).c_str(), to_directory ? 1 : 0) == 0) {
+        if (api_call(detail::fromUtf8<std::wstring>(new_symlink._u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name._u8string()).c_str(), to_directory ? 1 : 0) == 0) {
             auto result = ::GetLastError();
-            if (result == ERROR_PRIVILEGE_NOT_HELD && api_call(detail::fromUtf8<std::wstring>(new_symlink.u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name.u8string()).c_str(), to_directory ? 3 : 2) != 0) {
+            if (result == ERROR_PRIVILEGE_NOT_HELD && api_call(detail::fromUtf8<std::wstring>(new_symlink._u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name._u8string()).c_str(), to_directory ? 3 : 2) != 0) {
                 return;
             }
             ec = detail::make_system_error(result);
@@ -1812,7 +1826,7 @@ GHC_INLINE void create_hardlink(const path& target_name, const path& new_hardlin
 #pragma GCC diagnostic pop
 #endif
     if (api_call) {
-        if (api_call(detail::fromUtf8<std::wstring>(new_hardlink.u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name.u8string()).c_str(), NULL) == 0) {
+        if (api_call(detail::fromUtf8<std::wstring>(new_hardlink._u8string()).c_str(), detail::fromUtf8<std::wstring>(target_name._u8string()).c_str(), NULL) == 0) {
             ec = detail::make_system_error();
         }
     }
@@ -2043,7 +2057,7 @@ GHC_INLINE file_status symlink_status_ex(const path& p, std::error_code& ec, uin
 #ifdef GHC_OS_WINDOWS
     file_status fs;
     WIN32_FILE_ATTRIBUTE_DATA attr;
-    if (!GetFileAttributesExW(detail::fromUtf8<std::wstring>(p.u8string()).c_str(), GetFileExInfoStandard, &attr)) {
+    if (!GetFileAttributesExW(detail::fromUtf8<std::wstring>(p._u8string()).c_str(), GetFileExInfoStandard, &attr)) {
         ec = detail::make_system_error();
     }
     else {
@@ -2581,9 +2595,15 @@ GHC_INLINE std::wstring path::wstring() const
 #endif
 }
 
-GHC_INLINE std::string path::u8string() const
+GHC_INLINE path::_u8_string_type path::u8string() const
 {
-    return native_impl();
+    auto nativeImpl = native_impl();
+    return _u8_string_type(nativeImpl.begin(), nativeImpl.end());
+}
+
+GHC_INLINE std::string path::_u8string() const
+{
+  return native_impl();
 }
 
 GHC_INLINE std::u16string path::u16string() const
@@ -2618,9 +2638,9 @@ GHC_INLINE std::wstring path::generic_wstring() const
     return detail::fromUtf8<std::wstring>(_path);
 }
 
-GHC_INLINE std::string path::generic_u8string() const
+GHC_INLINE path::_u8_string_type path::generic_u8string() const
 {
-    return _path;
+    return _u8_string_type(_path.begin(), _path.end());
 }
 
 GHC_INLINE std::u16string path::generic_u16string() const
@@ -3181,7 +3201,7 @@ GHC_INLINE filesystem_error::filesystem_error(const std::string& what_arg, const
     , _p1(p1)
 {
     if (!_p1.empty()) {
-        _what_arg += ": '" + _p1.u8string() + "'";
+        _what_arg += ": '" + _p1._u8string() + "'";
     }
 }
 
@@ -3193,10 +3213,10 @@ GHC_INLINE filesystem_error::filesystem_error(const std::string& what_arg, const
     , _p2(p2)
 {
     if (!_p1.empty()) {
-        _what_arg += ": '" + _p1.u8string() + "'";
+        _what_arg += ": '" + _p1._u8string() + "'";
     }
     if (!_p2.empty()) {
-        _what_arg += ", '" + _p2.u8string() + "'";
+        _what_arg += ", '" + _p2._u8string() + "'";
     }
 }
 
@@ -3512,7 +3532,7 @@ GHC_INLINE bool copy_file(const path& from, const path& to, copy_options options
         overwrite = true;
     }
 #ifdef GHC_OS_WINDOWS
-    if (!::CopyFileW(detail::fromUtf8<std::wstring>(from.u8string()).c_str(), detail::fromUtf8<std::wstring>(to.u8string()).c_str(), !overwrite)) {
+    if (!::CopyFileW(detail::fromUtf8<std::wstring>(from._u8string()).c_str(), detail::fromUtf8<std::wstring>(to._u8string()).c_str(), !overwrite)) {
         ec = detail::make_system_error();
         return false;
     }
@@ -3674,12 +3694,12 @@ GHC_INLINE bool create_directory(const path& p, const path& attributes, std::err
 #endif
 #ifdef GHC_OS_WINDOWS
     if (!attributes.empty()) {
-        if (!::CreateDirectoryExW(detail::fromUtf8<std::wstring>(attributes.u8string()).c_str(), detail::fromUtf8<std::wstring>(p.u8string()).c_str(), NULL)) {
+        if (!::CreateDirectoryExW(detail::fromUtf8<std::wstring>(attributes._u8string()).c_str(), detail::fromUtf8<std::wstring>(p._u8string()).c_str(), NULL)) {
             ec = detail::make_system_error();
             return false;
         }
     }
-    else if (!::CreateDirectoryW(detail::fromUtf8<std::wstring>(p.u8string()).c_str(), NULL)) {
+    else if (!::CreateDirectoryW(detail::fromUtf8<std::wstring>(p._u8string()).c_str(), NULL)) {
         ec = detail::make_system_error();
         return false;
     }
@@ -3800,7 +3820,7 @@ GHC_INLINE void current_path(const path& p, std::error_code& ec) noexcept
 {
     ec.clear();
 #ifdef GHC_OS_WINDOWS
-    if (!::SetCurrentDirectoryW(detail::fromUtf8<std::wstring>(p.u8string()).c_str())) {
+    if (!::SetCurrentDirectoryW(detail::fromUtf8<std::wstring>(p._u8string()).c_str())) {
         ec = detail::make_system_error();
     }
 #else
@@ -3907,7 +3927,7 @@ GHC_INLINE uintmax_t file_size(const path& p, std::error_code& ec) noexcept
     ec.clear();
 #ifdef GHC_OS_WINDOWS
     WIN32_FILE_ATTRIBUTE_DATA attr;
-    if (!GetFileAttributesExW(detail::fromUtf8<std::wstring>(p.u8string()).c_str(), GetFileExInfoStandard, &attr)) {
+    if (!GetFileAttributesExW(detail::fromUtf8<std::wstring>(p._u8string()).c_str(), GetFileExInfoStandard, &attr)) {
         ec = detail::make_system_error();
         return static_cast<uintmax_t>(-1);
     }
@@ -4364,7 +4384,7 @@ GHC_INLINE bool remove(const path& p, std::error_code& ec) noexcept
 {
     ec.clear();
 #ifdef GHC_OS_WINDOWS
-    std::wstring np = detail::fromUtf8<std::wstring>(p.u8string());
+    std::wstring np = detail::fromUtf8<std::wstring>(p._u8string());
     DWORD attr = GetFileAttributesW(np.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) {
         auto error = ::GetLastError();
@@ -4470,7 +4490,7 @@ GHC_INLINE void rename(const path& from, const path& to, std::error_code& ec) no
     ec.clear();
 #ifdef GHC_OS_WINDOWS
     if (from != to) {
-        if (!MoveFileExW(detail::fromUtf8<std::wstring>(from.u8string()).c_str(), detail::fromUtf8<std::wstring>(to.u8string()).c_str(), (DWORD)MOVEFILE_REPLACE_EXISTING)) {
+        if (!MoveFileExW(detail::fromUtf8<std::wstring>(from._u8string()).c_str(), detail::fromUtf8<std::wstring>(to._u8string()).c_str(), (DWORD)MOVEFILE_REPLACE_EXISTING)) {
             ec = detail::make_system_error();
         }
     }
@@ -4508,7 +4528,7 @@ GHC_INLINE void resize_file(const path& p, uintmax_t size, std::error_code& ec) 
 #endif
         return;
     }
-    std::shared_ptr<void> file(CreateFileW(detail::fromUtf8<std::wstring>(p.u8string()).c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL), CloseHandle);
+    std::shared_ptr<void> file(CreateFileW(detail::fromUtf8<std::wstring>(p._u8string()).c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL), CloseHandle);
     if (file.get() == INVALID_HANDLE_VALUE) {
         ec = detail::make_system_error();
     }
@@ -4541,7 +4561,7 @@ GHC_INLINE space_info space(const path& p, std::error_code& ec) noexcept
     ULARGE_INTEGER freeBytesAvailableToCaller = {{0, 0}};
     ULARGE_INTEGER totalNumberOfBytes = {{0, 0}};
     ULARGE_INTEGER totalNumberOfFreeBytes = {{0, 0}};
-    if (!GetDiskFreeSpaceExW(detail::fromUtf8<std::wstring>(p.u8string()).c_str(), &freeBytesAvailableToCaller, &totalNumberOfBytes, &totalNumberOfFreeBytes)) {
+    if (!GetDiskFreeSpaceExW(detail::fromUtf8<std::wstring>(p._u8string()).c_str(), &freeBytesAvailableToCaller, &totalNumberOfBytes, &totalNumberOfFreeBytes)) {
         ec = detail::make_system_error();
         return {static_cast<uintmax_t>(-1), static_cast<uintmax_t>(-1), static_cast<uintmax_t>(-1)};
     }
@@ -5095,7 +5115,7 @@ public:
     {
         if (!_base.empty()) {
             ZeroMemory(&_findData, sizeof(WIN32_FIND_DATAW));
-            if ((_dirHandle = FindFirstFileW(detail::fromUtf8<std::wstring>((_base / "*").u8string()).c_str(), &_findData)) != INVALID_HANDLE_VALUE) {
+            if ((_dirHandle = FindFirstFileW(detail::fromUtf8<std::wstring>((_base / "*")._u8string()).c_str(), &_findData)) != INVALID_HANDLE_VALUE) {
                 if (std::wstring(_findData.cFileName) == L"." || std::wstring(_findData.cFileName) == L"..") {
                     increment(_ec);
                 }

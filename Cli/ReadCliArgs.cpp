@@ -1,7 +1,19 @@
 
 
 #include "ReadCliArgs.h"
+#include <type_traits>
+
+// https://github.com/muellan/clipp/issues/53
+// clang is not completed: https://libcxx.llvm.org/cxx2a_status.html
+#if _MSC_VER
+namespace std {
+template <class> struct result_of;
+template <class F, class... ArgTypes>
+struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
+} // namespace std
+#endif
 #include <clipp.h>
+
 #include <iostream>
 #include <vector>
 #ifdef _WIN32
@@ -64,18 +76,21 @@ std::optional<std::vector<std::string>> getCommandLineArgsU8(int argc_,
 
 namespace beecli {
 std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
+  std::string inputFile;
+  std::string outFile;
+  std::string fbmDir;
+
   CliArgs cliArgs;
   auto cli = (
 
-      clipp::value("input file", cliArgs.inputFile),
+      clipp::value("input file", inputFile),
 
-      clipp::option("--out")
-          .set(cliArgs.outFile)
-          .doc("The output path to the .gltf or .glb file. Defaults to "
-               "`<working-directory>/<FBX-filename-basename>.gltf`"),
+      clipp::option("--out").set(outFile).doc(
+          "The output path to the .gltf or .glb file. Defaults to "
+          "`<working-directory>/<FBX-filename-basename>.gltf`"),
 
       clipp::option("--fbm-dir")
-          .set(cliArgs.fbmDir)
+          .set(fbmDir)
           .doc("The directory to store the embedded media."),
 
       clipp::option("--no-flip-v")
@@ -107,6 +122,10 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
         cli, commandLineArgsU8->empty() ? "" : commandLineArgsU8->front());
     return {};
   }
+
+  cliArgs.inputFile.assign(inputFile.begin(), inputFile.end());
+  cliArgs.outFile.assign(outFile.begin(), outFile.end());
+  cliArgs.fbmDir.assign(fbmDir.begin(), fbmDir.end());
 
   return cliArgs;
 }
