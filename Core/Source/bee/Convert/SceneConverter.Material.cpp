@@ -1,5 +1,6 @@
 
 #include <bee/Convert/SceneConverter.h>
+#include <fmt/format.h>
 
 namespace bee {
 template <typename T_> static T_ getMetalnessFromSpecular(const T_ *specular_) {
@@ -20,17 +21,33 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
     fbxsdk::FbxSurfaceLambert &fbx_material_) {
   const auto materialName = std::string{fbx_material_.GetName()};
 
-  const auto fbxTransparentColor = fbx_material_.TransparentColor.Get();
-  // FBX color is RGB, so we calculate the A channel as the average of the FBX
-  // transparency color
-  const auto glTFTransparency =
-      1.0 - fbx_material_.TransparencyFactor.Get() *
-                (fbxTransparentColor[0] + fbxTransparentColor[1] +
-                 fbxTransparentColor[2]);
-
   fx::gltf::Material glTFMaterial;
   glTFMaterial.name = materialName;
   auto &glTFPbrMetallicRoughness = glTFMaterial.pbrMetallicRoughness;
+
+  // Transparency color
+  std::array<float, 3> transparentColor = {1.0f, 1.0f, 1.0f};
+  {
+    const auto fbxTransparencyFactor = fbx_material_.TransparencyFactor.Get();
+    if (const auto glTFOpacityTextureIndex =
+            _convertTextureProperty(fbx_material_.TransparentColor)) {
+      _warn(fmt::format(
+          "Material \"{}\" use texture for property \"{}\", which is not supported.",
+          materialName, "Transparent color"));
+    } else {
+      const auto fbxTransparentColor = fbx_material_.TransparentColor.Get();
+      for (int i = 0; i < 3; ++i) {
+        transparentColor[i] =
+            static_cast<float>(fbxTransparentColor[i] * fbxTransparencyFactor);
+      }
+    }
+    // FBX color is RGB, so we calculate the A channel as the average of the FBX
+    // transparency color
+    glTFPbrMetallicRoughness.baseColorFactor[3] =
+        1.0f - std::accumulate(transparentColor.begin(), transparentColor.end(),
+                               0.0f) /
+                   3.0f;
+  }
 
   // Base color
   {
@@ -50,8 +67,6 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
         glTFPbrMetallicRoughness.baseColorFactor[i] =
             static_cast<float>(fbxDiffuseColor[i] * diffuseFactor);
       }
-      glTFPbrMetallicRoughness.baseColorFactor[3] =
-          static_cast<float>(glTFTransparency);
     }
   }
 

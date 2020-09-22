@@ -1,8 +1,47 @@
 
-#include <fmt/format.h>
 #include <bee/Convert/DirectSpreader.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
+#include <fmt/format.h>
+
+constexpr static auto defaultEplislon = static_cast<fbxsdk::FbxDouble>(1e-6);
+
+bool isApproximatelyEqual(fbxsdk::FbxDouble from_,
+                          fbxsdk::FbxDouble to_,
+                          fbxsdk::FbxDouble eplislon_ = defaultEplislon) {
+  return std::abs(from_ - to_) < eplislon_;
+}
+
+template <int Size_>
+bool isApproximatelyEqual(const fbxsdk::FbxDouble *from_,
+                          const fbxsdk::FbxDouble *to_,
+                          fbxsdk::FbxDouble eplislon_ = defaultEplislon) {
+  for (int i = 0; i < Size_; ++i) {
+    if (!isApproximatelyEqual(from_[i], to_[i], eplislon_)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+fbxsdk::FbxDouble
+lerp(fbxsdk::FbxDouble from_, fbxsdk::FbxDouble to_, fbxsdk::FbxDouble rate_) {
+  return from_ + (to_ - from_) * rate_;
+}
+
+fbxsdk::FbxVector4 lerp(const fbxsdk::FbxVector4 &from_,
+                        const fbxsdk::FbxVector4 &to_,
+                        fbxsdk::FbxDouble rate_) {
+  return fbxsdk::FbxVector4(
+      lerp(from_[0], to_[0], rate_), lerp(from_[1], to_[1], rate_),
+      lerp(from_[2], to_[2], rate_), lerp(from_[3], to_[3], rate_));
+}
+
+fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
+                            const fbxsdk::FbxQuaternion &to_,
+                            fbxsdk::FbxDouble rate_) {
+  return from_.Slerp(to_, rate_);
+}
 
 namespace bee {
 void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
@@ -310,12 +349,12 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
   for (std::remove_const_t<decltype(nFrames)> iFrame = 0; iFrame < nFrames;
        ++iFrame) {
     const auto fbxFrame = anim_range_.firstFrame + iFrame;
-    fbxsdk::FbxTime time;
-    time.SetFrame(fbxFrame, anim_range_.timeMode);
+    fbxsdk::FbxTime fbxTime;
+    fbxTime.SetFrame(fbxFrame, anim_range_.timeMode);
 
-    const auto localTransform = fbx_node_.EvaluateLocalTransform(time);
-    bool mayBeOptOut = false;
+    const auto &localTransform = fbx_node_.EvaluateLocalTransform(fbxTime);
 
+    const auto time = fbxTime.GetSecondDouble();
     fbxsdk::FbxVector4 translation;
     if (isTranslationAnimated) {
       translation = localTransform.GetT();
@@ -330,8 +369,46 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
       scale = localTransform.GetS();
     }
 
-    if (!mayBeOptOut) {
-      times.push_back(time.GetSecondDouble());
+    const auto mayBeOptOut = [&]() {
+      // We have to admit that we at least get 3 frames
+      // even they are linear at all.
+      if (iFrame <= 1 || iFrame == nFrames - 1) {
+        return false;
+      }
+      const auto iMid = times.size() - 1;
+      const auto iPrev = times.size() - 2;
+      const auto dPrevTime = time - times[iPrev];
+      if (isApproximatelyEqual(dPrevTime, 0.0)) {
+        // If current frame time is indistinguishable from previous frame time,
+        // we can omit it.
+        return true;
+      }
+      const auto rate = (times[iMid] - times[iPrev]) / dPrevTime;
+      if (isApproximatelyEqual(rate, 0.0)) {
+        // If two previous frame times are indistinguishable, we shall not omit
+        // current frame.
+        return false;
+      }
+      if (isTranslationAnimated &&
+          !isApproximatelyEqual<3>(lerp(translations[iPrev], translation, rate),
+                                   translations[iMid])) {
+        return false;
+      }
+      if (isRotationAnimated &&
+          !isApproximatelyEqual<4>(slerp(rotations[iPrev], rotation, rate),
+                                   rotations[iMid])) {
+        return false;
+      }
+      if (isScaleAnimated &&
+          !isApproximatelyEqual<3>(lerp(scales[iPrev], scale, rate),
+                                   scales[iMid])) {
+        return false;
+      }
+      return true;
+    };
+
+    if (!mayBeOptOut()) {
+      times.push_back(time);
       if (isTranslationAnimated) {
         translations.push_back(translation);
       }
