@@ -41,7 +41,13 @@ But Cocos team has to find another approach because:
 
 - 🗸 Scene hierarchy
 
-  - 🧐 FBX specific node inherit types: `RrSs`, `Rrs`
+  - ⌛ FBX specific node inherit types: `RrSs`, `Rrs`
+
+- ⌛ Cameras
+
+- ⌛ Lights
+
+🗸 Supported ⌛ Not finished
 
 ## Thanks
 
