@@ -18,7 +18,7 @@ deploy:
   description: 'A FBX to glTF file format converter.'
   provider: GitHub
   auth_token:
-    secure: xxyy
+    secure: kqqOO+PbfI41hxJ1NT4tkKIaIOZZxHRJLx+yghtRMgXPFUkXArTTsQUUjXzzw2/N
   artifact: archive
   draft: true
   prerelease: true
