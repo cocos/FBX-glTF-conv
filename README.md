@@ -13,7 +13,7 @@ But Cocos team has to find another approach because:
 * FBX2glTF store the glTF result files onto disk and Creator read the files.
   This is the only way that Creator can communicate with FBX2glTF. File system I/O is slow.
 * Author of FBX2glTF is tired.
-* FBX is complex and all exporters working for it are buggy. We usually need to fix strange issues.
+* FBX is complex and all exporters working for it are buggy. We usually need to fix strange issues. It's hard to sync fixes between Cocos and Facebook.
 
 ## Features
 
