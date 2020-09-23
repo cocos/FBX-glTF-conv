@@ -109,7 +109,11 @@ foreach ($cmakeBuildType in @("Debug", "Release")) {
 
     cmake --build $cmakeBuildDir
 
-    cmake --install $cmakeBuildDir
+    if ($platform -eq [Platform]::windows) {
+        cmake --build $cmakeBuildDir --target install
+    } else {
+        cmake --install $cmakeBuildDir
+    }
 }
 
 if (((Test-Path $cmakeInstallPrefix) -eq $false) -or ((Get-Item $cmakeInstallPrefix) -isnot [System.IO.DirectoryInfo])) {
