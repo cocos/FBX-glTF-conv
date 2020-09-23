@@ -1,5 +1,5 @@
 
-version: 1.0.0-alpha.{build}
+version: 1.0.0-build.{build}
 
 image:
   - Visual Studio 2019
@@ -11,3 +11,16 @@ build_script:
 artifacts:
   - path: '*.zip'
     name: archive
+deploy:
+  # https://help.appveyor.com/discussions/problems/3362-deployment-to-github
+  tag: $(APPVEYOR_REPO_TAG_NAME)
+  release: FBX-glTF-conv-$(APPVEYOR_REPO_TAG_NAME)
+  description: 'A FBX to glTF file format converter.'
+  provider: GitHub
+  auth_token:
+    secure: xxyy
+  artifact: archive
+  draft: true
+  prerelease: true
+  on:
+    APPVEYOR_REPO_TAG: true
