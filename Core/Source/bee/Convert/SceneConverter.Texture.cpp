@@ -68,7 +68,8 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
 
   std::optional<fs::path> imageFilePath;
   if (!imageFileNameRelative.empty()) {
-    imageFilePath = fs::path(_fbxFileName) / imageFileNameRelative;
+    imageFilePath =
+        fs::path(_fbxFileName).parent_path() / imageFileNameRelative;
   } else if (!imageFileName.empty()) {
     imageFilePath = imageFileName;
   }
