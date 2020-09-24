@@ -62,8 +62,10 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
     const auto usedAnimationTimeMode = _animationTimeMode;
     const auto firstFrame =
         timeSpan.GetStart().GetFrameCount(usedAnimationTimeMode);
-    const auto lastFrame =
-        timeSpan.GetStop().GetFrameCount(usedAnimationTimeMode);
+    // It may not be integer multiple, we do ceil thereof.
+    const auto lastFrame = static_cast<fbxsdk::FbxLongLong>(std::ceil(
+        timeSpan.GetStop().GetFrameCountPrecise(usedAnimationTimeMode)));
+
     assert(lastFrame >= firstFrame);
     AnimRange animRange{_animationTimeMode, firstFrame, lastFrame};
 
