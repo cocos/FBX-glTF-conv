@@ -1,8 +1,21 @@
 
-#include <fmt/format.h>
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
+#include <fmt/format.h>
 
 namespace bee {
+/// <summary>
+/// glTF does not allow sub-meshes have different number of targets.
+/// </summary>
+class InconsistentTargetsCountError : public NodeError {
+public:
+  using NodeError::NodeError;
+};
+
+void to_json(nlohmann::json &j_, const InconsistentTargetsCountError &error_) {
+  j_ = nlohmann::json{{"node", error_.node()}};
+}
+
 std::optional<SceneConverter::FbxBlendShapeData>
 SceneConverter::_extractdBlendShapeData(const fbxsdk::FbxMesh &fbx_mesh_) {
   FbxBlendShapeData blendShapeData;
@@ -89,8 +102,9 @@ SceneConverter::_extractNodeMeshesBlendShape(
 
   if (!std::all_of(std::next(blendShapeDatas.begin()), blendShapeDatas.end(),
                    hasSameStruct)) {
-    _warn(fmt::format(
-        "glTF does not allow sub-meshes have different number of targets."));
+    _log(Logger::Level::warning,
+         InconsistentTargetsCountError{
+             fbx_meshes_.front()->GetNode()->GetName()});
   }
 
   if (!firstBlendShapeData) {

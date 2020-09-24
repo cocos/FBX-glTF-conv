@@ -103,7 +103,11 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
 
       clipp::option("--suspected-animation-duration-limit")
           .set(cliArgs.convertOptions.suspectedAnimationDurationLimit)
-          .doc("The suspected animation duration limit.")
+          .doc("The suspected animation duration limit."),
+
+      clipp::option("--verbose")
+          .set(cliArgs.convertOptions.verbose)
+          .doc("Verbose output.")
 
   );
 

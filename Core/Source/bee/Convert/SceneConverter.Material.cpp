@@ -3,6 +3,43 @@
 #include <fmt/format.h>
 
 namespace bee {
+class MaterialError {
+public:
+  MaterialError(std::u8string_view material_name_)
+      : _materialName(material_name_) {
+  }
+
+  std::u8string_view material() const {
+    return _materialName;
+  }
+
+private:
+  std::u8string _materialName;
+};
+
+/// <summary>
+/// Material {} use texture for property \"{}\", which is not supported.
+/// </summary>
+class UnsupportedTexturePropertyError : public MaterialError {
+public:
+  UnsupportedTexturePropertyError(std::u8string_view material_name_,
+                                  std::u8string_view property_name_)
+      : MaterialError(material_name_), _propertyName(property_name_) {
+  }
+
+  std::u8string_view property() const {
+    return _propertyName;
+  }
+
+private:
+  std::u8string _propertyName;
+};
+
+void to_json(nlohmann::json &j_,
+             const UnsupportedTexturePropertyError &error_) {
+  j_ = nlohmann::json{{"property", error_.property()}};
+}
+
 template <typename T_> static T_ getMetalnessFromSpecular(const T_ *specular_) {
   return static_cast<T_>(specular_[0] > 0.5 ? 1 : 0);
 }
@@ -21,6 +58,12 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
     fbxsdk::FbxSurfaceLambert &fbx_material_) {
   const auto materialName = std::string{fbx_material_.GetName()};
 
+  auto forbidTextureProperty = [&](std::u8string_view property_name_) {
+    _log(Logger::Level::warning,
+         UnsupportedTexturePropertyError{forceTreatAsU8(materialName),
+                                         property_name_});
+  };
+
   fx::gltf::Material glTFMaterial;
   glTFMaterial.name = materialName;
   auto &glTFPbrMetallicRoughness = glTFMaterial.pbrMetallicRoughness;
@@ -31,9 +74,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
     const auto fbxTransparencyFactor = fbx_material_.TransparencyFactor.Get();
     if (const auto glTFOpacityTextureIndex =
             _convertTextureProperty(fbx_material_.TransparentColor)) {
-      _warn(fmt::format(
-          "Material \"{}\" use texture for property \"{}\", which is not supported.",
-          materialName, "Transparent color"));
+      forbidTextureProperty(u8"Transparent color");
     } else {
       const auto fbxTransparentColor = fbx_material_.TransparentColor.Get();
       for (int i = 0; i < 3; ++i) {

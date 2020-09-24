@@ -30,7 +30,10 @@ public:
       if (!xRefManager.AddXRefProject(
               fbxsdk::FbxXRefManager::sEmbeddedFileProject,
               fbmDirCStr.data())) {
-        _warn("Failed to set .fbm dir");
+        if (options_.logger) {
+          (*options_.logger)(Logger::Level::warning,
+                             u8"Failed to set .fbm dir");
+        }
       }
     }
   }
@@ -39,8 +42,8 @@ public:
     _fbxManager->Destroy();
   }
 
-  std::string BEE_API convert(std::u8string_view file_,
-                              const ConvertOptions &options_) {
+  Json BEE_API convert(std::u8string_view file_,
+                       const ConvertOptions &options_) {
     auto fbxScene = _import(file_);
     FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
     GLTFBuilder glTFBuilder;
@@ -93,15 +96,11 @@ public:
     nlohmann::json glTFJson;
     fx::gltf::to_json(glTFJson, glTFDocument);
 
-    return glTFJson.dump(2);
+    return glTFJson;
   }
 
 private:
   fbxsdk::FbxManager *_fbxManager = nullptr;
-
-  void _warn(std::string_view message_) {
-    std::cout << message_ << "\n";
-  }
 
   FbxScene *_import(std::u8string_view file_) {
     auto ioSettings = fbxsdk::FbxIOSettings::Create(_fbxManager, IOSROOT);
@@ -142,8 +141,7 @@ private:
   }
 };
 
-std::string BEE_API convert(std::u8string_view file_,
-                            const ConvertOptions &options_) {
+Json BEE_API convert(std::u8string_view file_, const ConvertOptions &options_) {
   Converter converter(options_);
   return converter.convert(file_, options_);
 }
