@@ -1,10 +1,23 @@
 
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <bee/UntypedVertex.h>
 #include <fmt/format.h>
 
 namespace bee {
+/// <summary>
+/// We're unable to process multi material layers.
+/// </summary>
+class MultiMaterialLayersError : public MeshError {
+public:
+  using MeshError::MeshError;
+};
+
+void to_json(nlohmann::json &j_, const MultiMaterialLayersError &error_) {
+  j_ = nlohmann::json{{"node", error_.node()}};
+}
+
 template <typename Dst_, typename Src_, std::size_t N_>
 static void untypedVertexCopy(std::byte *out_, const std::byte *in_) {
   auto in = reinterpret_cast<const Src_ *>(in_);
@@ -638,7 +651,8 @@ int SceneConverter::_getTheUniqueMaterialIndex(fbxsdk::FbxMesh &fbx_mesh_) {
     return -1;
   }
   if (nElementMaterialCount > 1) {
-    _warn("We're unable to process multi material layers");
+    _log(Logger::Level::warning,
+         MultiMaterialLayersError{fbx_mesh_.GetNode()->GetName()});
   }
   auto elementMaterial0 = fbx_mesh_.GetElementMaterial(0);
   if (elementMaterial0->GetMappingMode() != fbxsdk::FbxLayerElement::eAllSame) {

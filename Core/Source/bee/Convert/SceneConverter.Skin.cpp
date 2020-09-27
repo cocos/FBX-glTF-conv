@@ -1,9 +1,34 @@
 
-#include <fmt/format.h>
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
+#include <fmt/format.h>
 
 namespace bee {
+/// <summary>
+/// Joint {} has different inverse bind matrices for different meshes.
+/// </summary>
+class SkinMergeError : public NodeError {
+public:
+  using NodeError::NodeError;
+};
+
+void to_json(nlohmann::json &j_, const SkinMergeError &error_) {
+  j_ = nlohmann::json{{"node", error_.node()}};
+}
+
+/// <summary>
+/// The joint node \"{}\" is used for skinning but missed in scene graph.I t will be ignored.
+/// </summary>
+class DetachedJointError : public NodeError {
+public:
+  using NodeError::NodeError;
+};
+
+void to_json(nlohmann::json &j_, const DetachedJointError &error_) {
+  j_ = nlohmann::json{{"node", error_.node()}};
+}
+
 struct SceneConverter::MeshSkinData::Bone::IBMSpreader {
   using type = Bone;
 
@@ -66,11 +91,11 @@ SceneConverter::_extractNodeMeshesSkinData(
           newIndex =
               static_cast<decltype(newIndex)>(rNewBone - newBones.begin());
           if (rNewBone->inverseBindMatrix != partBone.inverseBindMatrix) {
-            _warn(fmt::format(
-                "Joint {} has different inverse bind matrices "
-                "for different meshes.",
-                _glTFBuilder.get(&fx::gltf::Document::nodes)[partBone.glTFNode]
-                    .name));
+            _log(Logger::Level::warning,
+                 SkinMergeError{
+                     _glTFBuilder
+                         .get(&fx::gltf::Document::nodes)[partBone.glTFNode]
+                         .name});
           }
         } else {
           newIndex = static_cast<NeutralVertexJointComponent>(newBones.size());
@@ -135,17 +160,17 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
       const auto glTFNodeIndex = _getNodeMap(*jointNode);
       if (!glTFNodeIndex) {
         // TODO: may be we should do some work here??
-        _warn(fmt::format("The joint node \"{}\" is used for skinning but "
-                          "missed in scene graph.It will be ignored.",
-                          jointNode->GetName()));
+        _log(Logger::Level::warning,
+             DetachedJointError{_convertName(jointNode->GetName())});
         continue;
       }
 
       switch (const auto linkMode = cluster->GetLinkMode()) {
       case fbxsdk::FbxCluster::eAdditive:
-        _warn(fmt::format("Unsupported cluster mode \"additive\" [Mesh: {}; "
-                          "ClusterLink: {}]",
-                          fbx_mesh_.GetName(), jointNode->GetName()));
+        _log(Logger::Level::warning,
+             fmt::format("Unsupported cluster mode \"additive\" [Mesh: {}; "
+                         "ClusterLink: {}]",
+                         fbx_mesh_.GetName(), jointNode->GetName()));
         break;
       case fbxsdk::FbxCluster::eNormalize:
       case fbxsdk::FbxCluster::eTotalOne:

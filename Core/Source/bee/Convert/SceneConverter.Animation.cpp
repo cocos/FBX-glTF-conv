@@ -52,11 +52,18 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
         fbx_scene_.GetSrcObject<fbxsdk::FbxAnimStack>(iAnimStack);
     const auto nAnimLayers = animStack->GetMemberCount<fbxsdk::FbxAnimLayer>();
     if (!nAnimLayers) {
+      if (_options.verbose) {
+        _log(Logger::Level::verbose,
+             u8"There is no animation layer exists in the animation stack.");
+      }
       continue;
     }
 
     const auto timeSpan = _getAnimStackTimeSpan(*animStack);
     if (timeSpan.GetDuration() == 0) {
+      if (_options.verbose) {
+        _log(Logger::Level::verbose, u8"The animation layer's duration is 0.");
+      }
       continue;
     }
     const auto usedAnimationTimeMode = _animationTimeMode;
@@ -186,8 +193,9 @@ void SceneConverter::_extractWeightsAnimation(
       _writeMorphAnimtion(glTF_animation_, first, nodeBumpMeta.glTFNodeIndex,
                           fbx_node_);
     } else {
-      _warn(fmt::format("Sub-meshes use different morph animation. We can't "
-                        "handle that case."));
+      _log(Logger::Level::warning,
+           fmt::format("Sub-meshes use different morph animation. We can't "
+                       "handle that case."));
     }
   }
 }

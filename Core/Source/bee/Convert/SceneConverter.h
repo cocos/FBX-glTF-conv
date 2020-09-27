@@ -17,6 +17,10 @@
 #include <unordered_map>
 
 namespace bee {
+inline std::u8string_view forceTreatAsU8(std::string_view s_) {
+  return {reinterpret_cast<const char8_t *>(s_.data()), s_.size()};
+}
+
 class SceneConverter {
 public:
   SceneConverter(fbxsdk::FbxManager &fbx_manager_,
@@ -183,7 +187,16 @@ private:
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
 
-  void _warn(std::string_view message_);
+  /// <summary>
+  /// Prefer std::u8string_view overloading.
+  /// </summary>
+  void _log(bee::Logger::Level level_, const char8_t *message_) {
+    _log(level_, std::u8string_view{message_});
+  }
+
+  void _log(bee::Logger::Level level_, std::u8string_view message_);
+
+  void _log(bee::Logger::Level level_, Json &&message_);
 
   fbxsdk::FbxGeometryConverter &_getGeometryConverter();
 

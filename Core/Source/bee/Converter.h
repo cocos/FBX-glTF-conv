@@ -2,6 +2,7 @@
 #pragma once
 
 #include <bee/BEE_API.h>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -15,6 +16,34 @@ public:
                                               std::uint32_t index_,
                                               bool multi_) {
     return {};
+  }
+};
+
+using Json = nlohmann::json;
+
+class Logger {
+public:
+  enum class Level {
+    verbose,
+    info,
+    warning,
+    error,
+    fatal,
+  };
+
+  virtual ~Logger() = default;
+
+  virtual void operator()(Level level_, Json &&message_) = 0;
+
+  virtual void operator()(Level level_, std::u8string_view message_) = 0;
+
+  inline void operator()(Level level_, const char8_t *message_) {
+    return (*this)(level_, std::u8string_view{message_});
+  }
+
+  inline void operator()(Level level_, const std::u8string &message_) {
+    return (*this)(level_,
+                   std::u8string_view{message_.data(), message_.size()});
   }
 };
 
@@ -79,9 +108,12 @@ struct ConvertOptions {
   bool export_trs_animation = true;
 
   bool export_blend_shape_animation = true;
+
+  Logger *logger = nullptr;
+
+  bool verbose = false;
 };
 
-std::string BEE_API convert(std::u8string_view file_,
-                            const ConvertOptions &options_);
+Json BEE_API convert(std::u8string_view file_, const ConvertOptions &options_);
 
 } // namespace bee

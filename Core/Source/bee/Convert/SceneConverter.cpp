@@ -1,10 +1,40 @@
 
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <fmt/format.h>
-#include <iostream>
 
 namespace bee {
+/// <summary>
+/// Node {} uses unsupported transform inheritance type '{}'.
+/// </summary>
+class InheritTypeError : public NodeError {
+public:
+  enum class Type {
+    RrSs,
+    Rrs,
+  };
+
+  InheritTypeError(Type type_, std::string_view node_)
+      : _type(type_), NodeError(node_) {
+  }
+
+  Type type() const {
+    return _type;
+  }
+
+private:
+  Type _type;
+};
+
+void to_json(nlohmann::json &j_, InheritTypeError::Type inherit_type_) {
+  j_ = inherit_type_ == InheritTypeError::Type::Rrs ? "Rrs" : "RrSs";
+}
+
+void to_json(nlohmann::json &j_, const InheritTypeError &error_) {
+  j_ = nlohmann::json{{"node", error_.node()}, {"type", error_.type()}};
+}
+
 SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
                                fbxsdk::FbxScene &fbx_scene_,
                                const ConvertOptions &options_,
@@ -25,8 +55,21 @@ void SceneConverter::convert() {
   _convertAnimation(_fbxScene);
 }
 
-void SceneConverter::_warn(std::string_view message_) {
-  std::cout << message_ << "\n";
+void to_json(Json &j_, bee::Logger::Level level_) {
+  j_ = static_cast<std::underlying_type_t<decltype(level_)>>(level_);
+}
+
+void SceneConverter::_log(bee::Logger::Level level_,
+                          std::u8string_view message_) {
+  if (_options.logger) {
+    (*_options.logger)(level_, message_);
+  }
+}
+
+void SceneConverter::_log(bee::Logger::Level level_, Json &&message_) {
+  if (_options.logger) {
+    (*_options.logger)(level_, std::move(message_));
+  }
 }
 
 fbxsdk::FbxGeometryConverter &SceneConverter::_getGeometryConverter() {
@@ -141,14 +184,12 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
   fbx_node_.GetTransformationInheritType(inheritType);
   if (inheritType == fbxsdk::FbxTransform::eInheritRrSs) {
     if (fbx_node_.GetParent() != nullptr) {
-      _warn(fmt::format("Node {} uses unsupported transform "
-                        "inheritance type 'eInheritRrSs'",
-                        fbx_node_.GetName()));
+      _log(Logger::Level::warning,
+           InheritTypeError{InheritTypeError::Type::RrSs, fbx_node_.GetName()});
     }
   } else if (inheritType == fbxsdk::FbxTransform::eInheritRrs) {
-    _warn(fmt::format("Node {} uses unsupported transform "
-                      "inheritance type 'eInheritRrs'",
-                      fbx_node_.GetName()));
+    _log(Logger::Level::warning,
+         InheritTypeError{InheritTypeError::Type::Rrs, fbx_node_.GetName()});
   }
 
   if (auto fbxLocalTransform = fbx_node_.EvaluateLocalTransform();
