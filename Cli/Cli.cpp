@@ -156,8 +156,9 @@ int main(int argc_, char *argv_[]) {
     const auto jsonLogger = dynamic_cast<const JsonLogger *>(logger.get());
     assert(jsonLogger);
     try {
-      fs::create_directories(fs::path{*cliOptions->logFile}.parent_path());
-      std::ofstream jsonLogOStream{*cliOptions->logFile};
+      const auto logFilePath = fs::path{ *cliOptions->logFile };
+      fs::create_directories(logFilePath.parent_path());
+      std::ofstream jsonLogOStream{ logFilePath };
       jsonLogOStream.exceptions(std::ios::badbit | std::ios::failbit);
       const auto jsonLogText = jsonLogger->messages().dump(2);
       jsonLogOStream << jsonLogText;
