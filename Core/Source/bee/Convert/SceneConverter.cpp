@@ -68,8 +68,7 @@ void SceneConverter::_log(bee::Logger::Level level_,
 
 void SceneConverter::_log(bee::Logger::Level level_, Json &&message_) {
   if (_options.logger) {
-    message_["level"] = level_;
-    (*_options.logger)(std::move(message_));
+    (*_options.logger)(level_, std::move(message_));
   }
 }
 

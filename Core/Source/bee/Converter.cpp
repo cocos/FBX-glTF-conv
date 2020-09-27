@@ -44,7 +44,7 @@ public:
 
   Json BEE_API convert(std::u8string_view file_,
                        const ConvertOptions &options_) {
-    auto fbxScene = _import(file_);
+    auto fbxScene = _import(file_, options_);
     FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
     GLTFBuilder glTFBuilder;
     SceneConverter sceneConverter{*_fbxManager, *fbxScene, options_, file_,
@@ -102,7 +102,7 @@ public:
 private:
   fbxsdk::FbxManager *_fbxManager = nullptr;
 
-  FbxScene *_import(std::u8string_view file_) {
+  FbxScene *_import(std::u8string_view file_, const ConvertOptions &options_) {
     auto ioSettings = fbxsdk::FbxIOSettings::Create(_fbxManager, IOSROOT);
     _fbxManager->SetIOSettings(ioSettings);
 
@@ -127,6 +127,17 @@ private:
       fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_GOBO, true);
       fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_ANIMATION, true);
       fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_GLOBAL_SETTINGS, true);
+    }
+
+    const auto fbxFileHeaderInfo = fbxImporter->GetFileHeaderInfo();
+    if (options_.verbose) {
+      if (options_.logger) {
+        const auto major = fbxFileHeaderInfo->mFileVersion / 1000;
+        const auto minor = fbxFileHeaderInfo->mFileVersion % 1000;
+        (*options_.logger)(
+            Logger::Level::verbose,
+            fmt::format(u8"FBX file version: {}.{:03}", major, 10));
+      }
     }
 
     auto fbxScene = fbxsdk::FbxScene::Create(_fbxManager, "");

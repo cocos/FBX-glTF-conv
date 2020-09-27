@@ -31,9 +31,20 @@ public:
     fatal,
   };
 
-  virtual void operator()(Json &&message_) = 0;
+  virtual ~Logger() = default;
+
+  virtual void operator()(Level level_, Json &&message_) = 0;
 
   virtual void operator()(Level level_, std::u8string_view message_) = 0;
+
+  inline void operator()(Level level_, const char8_t *message_) {
+    return (*this)(level_, std::u8string_view{message_});
+  }
+
+  inline void operator()(Level level_, const std::u8string &message_) {
+    return (*this)(level_,
+                   std::u8string_view{message_.data(), message_.size()});
+  }
 };
 
 struct ConvertOptions {

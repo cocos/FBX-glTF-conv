@@ -17,9 +17,9 @@ std::u8string relativeUriBetweenPath(const bee::filesystem::path &from_,
 
 class ConsoleLogger : public bee::Logger {
 public:
-  void operator()(bee::Json &&message_) override {
+  void operator()(Level level_, bee::Json &&message_) override {
     const auto text = message_.dump(2);
-    (*this)(bee::Logger::Level::info,
+    (*this)(level_,
             std::u8string_view{reinterpret_cast<const char8_t *>(text.data()),
                                text.size()});
   }
@@ -31,10 +31,16 @@ public:
   }
 };
 
-class JsonLogger : public ConsoleLogger {
+class JsonLogger : public bee::Logger {
 public:
-  void operator()(bee::Json &&message_) override {
-    _messages.push_back(message_);
+  void operator()(Level level_, bee::Json &&message_) override {
+    _messages.push_back(bee::Json{{"level", level_}, {"message", message_}});
+  }
+
+  void operator()(Level level_, std::u8string_view message_) override {
+    (*this)(level_, bee::Json(std::string_view{
+                        reinterpret_cast<const char *>(message_.data()),
+                        message_.size()}));
   }
 
   const bee::Json &messages() const {
@@ -42,7 +48,7 @@ public:
   }
 
 private:
-  bee::Json _messages;
+  bee::Json _messages = bee::Json::array();
 };
 
 int main(int argc_, char *argv_[]) {
@@ -125,7 +131,12 @@ int main(int argc_, char *argv_[]) {
 
   cliOptions->convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
 
-  const auto logger = std::make_unique<ConsoleLogger>();
+  std::unique_ptr<bee::Logger> logger;
+  if (cliOptions->logFile) {
+    logger = std::make_unique<JsonLogger>();
+  } else {
+    logger = std::make_unique<ConsoleLogger>();
+  }
   cliOptions->convertOptions.logger = logger.get();
 
   try {
@@ -139,6 +150,20 @@ int main(int argc_, char *argv_[]) {
     glTFJsonOStream.flush();
   } catch (const std::exception &exception) {
     std::cerr << exception.what() << "\n";
+  }
+
+  if (cliOptions->logFile) {
+    const auto jsonLogger = dynamic_cast<const JsonLogger *>(logger.get());
+    assert(jsonLogger);
+    try {
+      fs::create_directories(fs::path{*cliOptions->logFile}.parent_path());
+      std::ofstream jsonLogOStream{*cliOptions->logFile};
+      jsonLogOStream.exceptions(std::ios::badbit | std::ios::failbit);
+      const auto jsonLogText = jsonLogger->messages().dump(2);
+      jsonLogOStream << jsonLogText;
+    } catch (const std::exception &exception) {
+      std::cerr << exception.what() << "\n";
+    }
   }
 
   return 0;

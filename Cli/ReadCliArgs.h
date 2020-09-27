@@ -12,6 +12,7 @@ struct CliArgs {
   std::u8string inputFile;
   std::u8string outFile;
   std::u8string fbmDir;
+  std::optional<std::u8string> logFile;
   bee::ConvertOptions convertOptions;
 };
 
