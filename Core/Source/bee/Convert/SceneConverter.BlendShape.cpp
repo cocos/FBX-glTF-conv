@@ -7,13 +7,18 @@ namespace bee {
 /// <summary>
 /// glTF does not allow sub-meshes have different number of targets.
 /// </summary>
-class InconsistentTargetsCountError : public NodeError {
+class InconsistentTargetsCountError
+    : public NodeError<InconsistentTargetsCountError> {
 public:
+  constexpr static inline std::u8string_view code =
+      u8"inconsistent_target_count";
+
   using NodeError::NodeError;
 };
 
 void to_json(nlohmann::json &j_, const InconsistentTargetsCountError &error_) {
-  j_ = nlohmann::json{{"node", error_.node()}};
+  to_json(j_, static_cast<const NodeError<InconsistentTargetsCountError> &>(
+                  error_));
 }
 
 std::optional<SceneConverter::FbxBlendShapeData>

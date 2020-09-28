@@ -21,6 +21,10 @@ inline std::u8string_view forceTreatAsU8(std::string_view s_) {
   return {reinterpret_cast<const char8_t *>(s_.data()), s_.size()};
 }
 
+inline std::string_view forceTreatAsPlain(std::u8string_view s_) {
+  return {reinterpret_cast<const char *>(s_.data()), s_.size()};
+}
+
 class SceneConverter {
 public:
   SceneConverter(fbxsdk::FbxManager &fbx_manager_,

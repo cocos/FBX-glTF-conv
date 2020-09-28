@@ -8,14 +8,18 @@ namespace bee {
 /// <summary>
 /// Node {} uses unsupported transform inheritance type '{}'.
 /// </summary>
-class InheritTypeError : public NodeError {
+class UnsupportedInheritTypeError
+    : public NodeError<UnsupportedInheritTypeError> {
 public:
+  constexpr static inline std::u8string_view code =
+      u8"unsupported_inherit_type";
+
   enum class Type {
     RrSs,
     Rrs,
   };
 
-  InheritTypeError(Type type_, std::string_view node_)
+  UnsupportedInheritTypeError(Type type_, std::string_view node_)
       : _type(type_), NodeError(node_) {
   }
 
@@ -27,12 +31,15 @@ private:
   Type _type;
 };
 
-void to_json(nlohmann::json &j_, InheritTypeError::Type inherit_type_) {
-  j_ = inherit_type_ == InheritTypeError::Type::Rrs ? "Rrs" : "RrSs";
+void to_json(nlohmann::json &j_,
+             UnsupportedInheritTypeError::Type inherit_type_) {
+  j_ = inherit_type_ == UnsupportedInheritTypeError::Type::Rrs ? "Rrs" : "RrSs";
 }
 
-void to_json(nlohmann::json &j_, const InheritTypeError &error_) {
-  j_ = nlohmann::json{{"node", error_.node()}, {"type", error_.type()}};
+void to_json(nlohmann::json &j_, const UnsupportedInheritTypeError &error_) {
+  to_json(j_,
+          static_cast<const NodeError<UnsupportedInheritTypeError> &>(error_));
+  j_["type"] = error_.type();
 }
 
 SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
@@ -185,11 +192,13 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
   if (inheritType == fbxsdk::FbxTransform::eInheritRrSs) {
     if (fbx_node_.GetParent() != nullptr) {
       _log(Logger::Level::warning,
-           InheritTypeError{InheritTypeError::Type::RrSs, fbx_node_.GetName()});
+           UnsupportedInheritTypeError{UnsupportedInheritTypeError::Type::RrSs,
+                                       fbx_node_.GetName()});
     }
   } else if (inheritType == fbxsdk::FbxTransform::eInheritRrs) {
     _log(Logger::Level::warning,
-         InheritTypeError{InheritTypeError::Type::Rrs, fbx_node_.GetName()});
+         UnsupportedInheritTypeError{UnsupportedInheritTypeError::Type::Rrs,
+                                     fbx_node_.GetName()});
   }
 
   if (auto fbxLocalTransform = fbx_node_.EvaluateLocalTransform();

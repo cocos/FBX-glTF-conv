@@ -8,25 +8,29 @@ namespace bee {
 /// <summary>
 /// Joint {} has different inverse bind matrices for different meshes.
 /// </summary>
-class SkinMergeError : public NodeError {
+class SkinMergeError : public NodeError<SkinMergeError> {
 public:
-  using NodeError::NodeError;
+  constexpr static inline std::u8string_view code = u8"skin_merge_error";
+
+  using NodeError<SkinMergeError>::NodeError;
 };
 
 void to_json(nlohmann::json &j_, const SkinMergeError &error_) {
-  j_ = nlohmann::json{{"node", error_.node()}};
+  to_json(j_, static_cast<const NodeError<SkinMergeError> &>(error_));
 }
 
 /// <summary>
 /// The joint node \"{}\" is used for skinning but missed in scene graph.I t will be ignored.
 /// </summary>
-class DetachedJointError : public NodeError {
+class DetachedJointError : public NodeError<DetachedJointError> {
 public:
-  using NodeError::NodeError;
+  constexpr static inline std::u8string_view code = u8"skin_merge_error";
+
+  using NodeError<DetachedJointError>::NodeError;
 };
 
 void to_json(nlohmann::json &j_, const DetachedJointError &error_) {
-  j_ = nlohmann::json{{"node", error_.node()}};
+  to_json(j_, static_cast<const NodeError<DetachedJointError> &>(error_));
 }
 
 struct SceneConverter::MeshSkinData::Bone::IBMSpreader {
