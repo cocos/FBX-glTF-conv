@@ -24,7 +24,7 @@ void to_json(nlohmann::json &j_, const SkinMergeError &error_) {
 /// </summary>
 class DetachedJointError : public NodeError<DetachedJointError> {
 public:
-  constexpr static inline std::u8string_view code = u8"skin_merge_error";
+  constexpr static inline std::u8string_view code = u8"detached_joint_error";
 
   using NodeError<DetachedJointError>::NodeError;
 };
