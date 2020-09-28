@@ -9,13 +9,15 @@ namespace bee {
 /// <summary>
 /// We're unable to process multi material layers.
 /// </summary>
-class MultiMaterialLayersError : public MeshError {
+class MultiMaterialLayersError : public MeshError<MultiMaterialLayersError> {
 public:
+  constexpr static inline std::u8string_view code = u8"multi_material_layers";
+
   using MeshError::MeshError;
 };
 
 void to_json(nlohmann::json &j_, const MultiMaterialLayersError &error_) {
-  j_ = nlohmann::json{{"node", error_.node()}};
+  to_json(j_, static_cast<const MeshError<MultiMaterialLayersError> &>(error_));
 }
 
 template <typename Dst_, typename Src_, std::size_t N_>

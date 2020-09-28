@@ -1,9 +1,11 @@
 
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <fmt/format.h>
 
 namespace bee {
-class MaterialError {
+template <typename FinalError_>
+class MaterialError : public ErrorBase<FinalError_> {
 public:
   MaterialError(std::u8string_view material_name_)
       : _materialName(material_name_) {
@@ -17,12 +19,22 @@ private:
   std::u8string _materialName;
 };
 
+template <typename FinalError_>
+void to_json(nlohmann::json &j_, const MaterialError<FinalError_> &error_) {
+  to_json(j_, static_cast<const ErrorBase<FinalError_> &>(error_));
+  j_["material"] = forceTreatAsPlain(error_.material());
+}
+
 /// <summary>
 /// Material {} use texture for property \"{}\", which is not supported.
 /// </summary>
-class UnsupportedTexturePropertyError : public MaterialError {
+class ShallNotBeTextureError
+    : public MaterialError<ShallNotBeTextureError> {
 public:
-  UnsupportedTexturePropertyError(std::u8string_view material_name_,
+  constexpr static inline std::u8string_view code =
+      u8"shall_not_be_texture";
+
+  ShallNotBeTextureError(std::u8string_view material_name_,
                                   std::u8string_view property_name_)
       : MaterialError(material_name_), _propertyName(property_name_) {
   }
@@ -36,8 +48,11 @@ private:
 };
 
 void to_json(nlohmann::json &j_,
-             const UnsupportedTexturePropertyError &error_) {
-  j_ = nlohmann::json{{"property", error_.property()}};
+             const ShallNotBeTextureError &error_) {
+  to_json(j_,
+          static_cast<const MaterialError<ShallNotBeTextureError> &>(
+              error_));
+  j_["property"] = forceTreatAsPlain(error_.property());
 }
 
 template <typename T_> static T_ getMetalnessFromSpecular(const T_ *specular_) {
@@ -60,7 +75,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
 
   auto forbidTextureProperty = [&](std::u8string_view property_name_) {
     _log(Logger::Level::warning,
-         UnsupportedTexturePropertyError{forceTreatAsU8(materialName),
+         ShallNotBeTextureError{forceTreatAsU8(materialName),
                                          property_name_});
   };
 
