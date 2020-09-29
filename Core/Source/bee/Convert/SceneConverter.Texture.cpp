@@ -74,10 +74,13 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
     imageFilePath = imageFileName;
   }
 
-  if (imageFilePath) {
-    std::error_code err;
-    auto status = fs::status(*imageFilePath, err);
-    if (err || status.type() != fs::file_type::regular) {
+  if (imageFilePath && !_options.textureResolution.disabled) {
+    const auto exists = [&imageFilePath] {
+      std::error_code err;
+      const auto status = fs::status(*imageFilePath, err);
+      return !err && status.type() == fs::file_type::regular;
+    };
+    if (!_hasValidImageExtension(*imageFilePath) || !exists()) {
       auto image = _searchImage(imageFilePath->stem().string());
       if (image) {
         imageFilePath = image;
@@ -107,8 +110,9 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
                     "P8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
   }
 
-  glTFImage.extensionsAndExtras["extras"]["fileName"] = imageFileName;
-  glTFImage.extensionsAndExtras["extras"]["relativeFileName"] =
+  glTFImage.extensionsAndExtras["extras"]["FBX-glTF-conv"]["fileName"] =
+      imageFileName;
+  glTFImage.extensionsAndExtras["extras"]["FBX-glTF-conv"]["relativeFileName"] =
       imageFileNameRelative;
 
   auto glTFImageIndex =
@@ -120,7 +124,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
 std::optional<std::string>
 SceneConverter::_searchImage(const std::string_view name_) {
   namespace fs = bee::filesystem;
-  for (const auto &location : _options.textureSearch.locations) {
+  for (const auto &location : _options.textureResolution.locations) {
     std::error_code err;
     fs::directory_iterator dirIter{fs::path{location}, err};
     if (err) {
