@@ -19,6 +19,9 @@ struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
 #ifdef _WIN32
 #include <Windows.h>
 #endif
+#include <algorithm>
+#include <bee/polyfills/filesystem.h>
+#include <fmt/format.h>
 #include <optional>
 
 /// <summary>
@@ -80,11 +83,10 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
   std::string outFile;
   std::string fbmDir;
   std::string logFile;
+  std::vector<std::string> textureSearchLocations;
 
-  const std::u8string s = u8"--log-file";
-  const std::string s2 = "--log-file";
-  assert(s.size() == s2.size());
-  assert(std::equal(s.begin(), s.end(), s2.begin()));
+  const std::array<std::u8string_view, 2> tslMacros = {u8"cwd",
+                                                       u8"fileDirName"};
 
   CliArgs cliArgs;
   auto cli = (
@@ -103,6 +105,15 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
       clipp::option("--no-flip-v")
           .set(cliArgs.convertOptions.noFlipV)
           .doc("Do not flip V texture coordinates."),
+
+      clipp::option("--no-texture-resolution")
+          .set(cliArgs.convertOptions.textureResolution.disabled)
+          .doc("Do not resolve textures."),
+
+      clipp::option("--texture-search-locations")
+              .doc("Texture search locations. These path shall be absolute "
+                   "path or relative path from input file's directory.") &
+          clipp::values("texture-search-locations", textureSearchLocations),
 
       clipp::option("--animation-bake-rate")
           .set(cliArgs.convertOptions.animationBakeRate)
@@ -186,6 +197,23 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
   if (!logFile.empty()) {
     cliArgs.logFile.emplace();
     cliArgs.logFile->assign(logFile.begin(), logFile.end());
+  }
+  if (!textureSearchLocations.empty()) {
+    const auto baseDir = bee::filesystem::path{inputFile}.parent_path();
+    cliArgs.convertOptions.textureResolution.locations.resize(
+        textureSearchLocations.size());
+    std::transform(
+        textureSearchLocations.begin(), textureSearchLocations.end(),
+        cliArgs.convertOptions.textureResolution.locations.begin(),
+        [&baseDir](auto &s_) {
+          const auto p = bee::filesystem::path{std::u8string_view{
+              reinterpret_cast<const char8_t *>(s_.data()), s_.size()}};
+          if (p.is_absolute()) {
+            return p.u8string();
+          } else {
+            return (baseDir / p).u8string();
+          }
+        });
   }
 
   return cliArgs;

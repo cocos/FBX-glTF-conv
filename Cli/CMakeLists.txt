@@ -21,6 +21,9 @@ target_link_libraries(FBX-glTF-conv PRIVATE clipp::clipp)
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(BeeCore PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
 
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(BeeCore PRIVATE fmt::fmt fmt::fmt-header-only)
+
 if (APPLE)
     # Set @rpath so executable can find .dylib
     # See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations

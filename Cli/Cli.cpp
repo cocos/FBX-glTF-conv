@@ -114,21 +114,6 @@ int main(int argc_, char *argv_[]) {
   MyWriter writer{cliOptions->inputFile, cliOptions->outFile};
   cliOptions->convertOptions.useDataUriForBuffers = false;
   cliOptions->convertOptions.writer = &writer;
-
-  const auto imageSearchDepth = 2;
-  const std::array<const char *, 4> searchDirName = {"texture", "textures",
-                                                     "material", "materials"};
-  auto searchParentDir = fs::path(cliOptions->inputFile).parent_path();
-  for (int i = 0; i < imageSearchDepth && !searchParentDir.empty();
-       ++i, searchParentDir = searchParentDir.parent_path()) {
-    cliOptions->convertOptions.textureSearch.locations.push_back(
-        searchParentDir.u8string());
-    for (auto &name : searchDirName) {
-      cliOptions->convertOptions.textureSearch.locations.push_back(
-          (searchParentDir / name).u8string());
-    }
-  }
-
   cliOptions->convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
 
   std::unique_ptr<bee::Logger> logger;
