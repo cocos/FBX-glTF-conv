@@ -52,7 +52,7 @@ public:
     sceneConverter.convert();
 
     GLTFBuilder::BuildOptions buildOptions;
-    buildOptions.generator = "Cocos FBX to glTF";
+    buildOptions.generator = "FBX-glTF-conv";
     buildOptions.copyright =
         "Copyright (c) 2018-2020 Chukong Technologies Inc.";
     auto glTFBuildResult = glTFBuilder.build(buildOptions);
