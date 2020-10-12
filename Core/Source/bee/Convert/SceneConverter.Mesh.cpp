@@ -82,14 +82,16 @@ SceneConverter::_convertNodeMeshes(
       skinInfluenceChannels = nodeMeshesSkinData->meshChannels[iFbxMesh];
     }
 
+    MaterialUsage materialUsage;
     auto glTFPrimitive = _convertMeshAsPrimitive(
         *fbxMesh, meshName, vertexTransformX, normalTransformX, fbxShapes,
-        skinInfluenceChannels);
+        skinInfluenceChannels, materialUsage);
 
     auto materialIndex = _getTheUniqueMaterialIndex(*fbxMesh);
     if (materialIndex >= 0) {
       const auto fbxMaterial = fbx_node_.GetMaterial(materialIndex);
-      if (auto glTFMaterialIndex = _convertMaterial(*fbxMaterial)) {
+      if (auto glTFMaterialIndex =
+              _convertMaterial(*fbxMaterial, materialUsage)) {
         glTFPrimitive.material = *glTFMaterialIndex;
       }
     }
@@ -159,7 +161,8 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
     fbxsdk::FbxMatrix *vertex_transform_,
     fbxsdk::FbxMatrix *normal_transform_,
     std::span<fbxsdk::FbxShape *> fbx_shapes_,
-    std::span<MeshSkinData::InfluenceChannel> skin_influence_channels_) {
+    std::span<MeshSkinData::InfluenceChannel> skin_influence_channels_,
+    MaterialUsage &material_usage_) {
   auto vertexLayout =
       _getFbxMeshVertexLayout(fbx_mesh_, fbx_shapes_, skin_influence_channels_);
   const auto vertexSize = vertexLayout.size;
@@ -171,12 +174,13 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
                      UntypedVertexEqual>
       uniqueVertices({}, 0, UntypedVertexHasher{},
                      UntypedVertexEqual{vertexSize});
+  bool hasTransparentVertex = false;
 
   const auto nMeshPolygonVertices = fbx_mesh_.GetPolygonVertexCount();
-  auto meshPolygonVertices = fbx_mesh_.GetPolygonVertices();
-  auto controlPoints = fbx_mesh_.GetControlPoints();
+  const auto meshPolygonVertices = fbx_mesh_.GetPolygonVertices();
+  const auto controlPoints = fbx_mesh_.GetControlPoints();
   auto stagingVertex = untypedVertexAllocator.allocate();
-  auto processPolygonVertex =
+  const auto processPolygonVertex =
       [&](int polygon_vertex_index_) -> UniqueVertexIndex {
     auto [stagingVertexData, stagingVertexIndex] = stagingVertex;
     auto iControlPoint = meshPolygonVertices[polygon_vertex_index_];
@@ -223,6 +227,9 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
     // Vertex color
     for (auto [offset, element] : vertexLayout.colors) {
       auto color = element(iControlPoint, polygon_vertex_index_);
+      if (!hasTransparentVertex && color.mAlpha != 1.0) {
+        hasTransparentVertex = true;
+      }
       auto pColor = reinterpret_cast<NeutralVertexColorComponent *>(
           stagingVertexData + offset);
       FbxColorSpreader::spread(color, pColor);
@@ -320,6 +327,8 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
   auto glTFPrimitive = _createPrimitive(
       bulks, static_cast<std::uint32_t>(fbx_shapes_.size()), nUniqueVertices,
       uniqueVerticesData.get(), vertexLayout.size, indices, mesh_name_);
+
+  material_usage_.hasTransparentVertex = hasTransparentVertex;
 
   return glTFPrimitive;
 }
