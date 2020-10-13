@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <compare>
 
 namespace bee {
 inline std::u8string_view forceTreatAsU8(std::string_view s_) {
