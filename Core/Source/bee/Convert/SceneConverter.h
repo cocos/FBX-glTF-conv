@@ -180,7 +180,14 @@ private:
   struct MaterialUsage {
     bool hasTransparentVertex = false;
 
-    auto operator<=>(const MaterialUsage &) const = default;
+    auto operator<=>(const MaterialUsage &that_) const {
+      if (const auto cmp =
+              this->hasTransparentVertex <=> that_.hasTransparentVertex;
+          cmp != 0) {
+        return cmp;
+      }
+      return std::strong_ordering::equivalent;
+    }
   };
 
   struct MaterialConvertKey {
