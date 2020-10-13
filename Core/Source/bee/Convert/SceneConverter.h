@@ -180,13 +180,8 @@ private:
   struct MaterialUsage {
     bool hasTransparentVertex = false;
 
-    auto operator<=>(const MaterialUsage &that_) const {
-      if (const auto cmp =
-              this->hasTransparentVertex <=> that_.hasTransparentVertex;
-          cmp != 0) {
-        return cmp;
-      }
-      return std::strong_ordering::equivalent;
+    bool operator==(const MaterialUsage &that_) const {
+      return this->hasTransparentVertex == that_.hasTransparentVertex;
     }
   };
 
@@ -198,13 +193,7 @@ private:
     }
 
     auto operator<=>(const MaterialConvertKey &that_) const {
-      if (const auto cmp = this->_material <=> that_._material; cmp != 0) {
-        return cmp;
-      }
-      if (const auto cmp = this->_material <=> that_._material; cmp != 0) {
-        return cmp;
-      }
-      return std::strong_ordering::equivalent;
+      return this->_material == that_._material && this->_usage == that_._usage;
     }
 
     struct Hash {
