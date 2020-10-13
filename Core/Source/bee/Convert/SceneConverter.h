@@ -8,6 +8,7 @@
 #include <bee/GLTFBuilder.h>
 #include <bee/GLTFUtilities.h>
 #include <bee/polyfills/filesystem.h>
+#include <compare>
 #include <fbxsdk.h>
 #include <list>
 #include <map>
@@ -15,7 +16,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <compare>
 
 namespace bee {
 inline std::u8string_view forceTreatAsU8(std::string_view s_) {
@@ -190,7 +190,15 @@ private:
         : _material(material_.GetUniqueID()), _usage(usage_) {
     }
 
-    auto operator<=>(const MaterialConvertKey &) const = default;
+    auto operator<=>(const MaterialConvertKey &that_) const {
+      if (const auto cmp = this->_material <=> that_._material; cmp != 0) {
+        return cmp;
+      }
+      if (const auto cmp = this->_material <=> that_._material; cmp != 0) {
+        return cmp;
+      }
+      return std::strong_ordering::equivalent;
+    }
 
     struct Hash {
       std::size_t operator()(const MaterialConvertKey &key_) const noexcept {
