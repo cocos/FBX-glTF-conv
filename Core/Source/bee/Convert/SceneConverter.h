@@ -192,7 +192,7 @@ private:
         : _material(material_.GetUniqueID()), _usage(usage_) {
     }
 
-    bool operator<=>(const MaterialConvertKey &that_) const {
+    bool operator==(const MaterialConvertKey &that_) const {
       return this->_material == that_._material && this->_usage == that_._usage;
     }
 
