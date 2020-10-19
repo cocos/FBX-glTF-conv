@@ -8,6 +8,7 @@
 #include <bee/GLTFBuilder.h>
 #include <bee/GLTFUtilities.h>
 #include <bee/polyfills/filesystem.h>
+#include <compare>
 #include <fbxsdk.h>
 #include <list>
 #include <map>
@@ -176,6 +177,36 @@ private:
     std::vector<double> values;
   };
 
+  struct MaterialUsage {
+    bool hasTransparentVertex = false;
+
+    bool operator==(const MaterialUsage &that_) const {
+      return this->hasTransparentVertex == that_.hasTransparentVertex;
+    }
+  };
+
+  struct MaterialConvertKey {
+  public:
+    MaterialConvertKey(const fbxsdk::FbxSurfaceMaterial &material_,
+                       const MaterialUsage &usage_)
+        : _material(material_.GetUniqueID()), _usage(usage_) {
+    }
+
+    bool operator==(const MaterialConvertKey &that_) const {
+      return this->_material == that_._material && this->_usage == that_._usage;
+    }
+
+    struct Hash {
+      std::size_t operator()(const MaterialConvertKey &key_) const noexcept {
+        return std::hash<fbxsdk::FbxUInt64>{}(key_._material);
+      }
+    };
+
+  private:
+    fbxsdk::FbxUInt64 _material;
+    MaterialUsage _usage;
+  };
+
   GLTFBuilder &_glTFBuilder;
   fbxsdk::FbxManager &_fbxManager;
   fbxsdk::FbxGeometryConverter _fbxGeometryConverter;
@@ -187,6 +218,10 @@ private:
   std::vector<fbxsdk::FbxNode *> _anncouncedfbxNodes;
   std::unordered_map<GLTFSamplerKeys, GLTFBuilder::XXIndex, GLTFSamplerHash>
       _uniqueSamplers;
+  std::unordered_map<MaterialConvertKey,
+                     std::optional<GLTFBuilder::XXIndex>,
+                     MaterialConvertKey::Hash>
+      _materialConvertCache;
   std::unordered_map<fbxsdk::FbxUInt64, std::optional<GLTFBuilder::XXIndex>>
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
@@ -242,7 +277,8 @@ private:
       fbxsdk::FbxMatrix *vertex_transform_,
       fbxsdk::FbxMatrix *normal_transform_,
       std::span<fbxsdk::FbxShape *> fbx_shapes_,
-      std::span<MeshSkinData::InfluenceChannel> skin_influence_channels_);
+      std::span<MeshSkinData::InfluenceChannel> skin_influence_channels_,
+      MaterialUsage &material_usage_);
 
   FbxMeshVertexLayout _getFbxMeshVertexLayout(
       fbxsdk::FbxMesh &fbx_mesh_,
@@ -291,10 +327,12 @@ private:
       const std::vector<fbxsdk::FbxMesh *> &fbx_meshes_);
 
   std::optional<GLTFBuilder::XXIndex>
-  _convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_);
+  _convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                   const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
-  _convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_);
+  _convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_,
+                          const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_);

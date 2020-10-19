@@ -28,14 +28,12 @@ void to_json(nlohmann::json &j_, const MaterialError<FinalError_> &error_) {
 /// <summary>
 /// Material {} use texture for property \"{}\", which is not supported.
 /// </summary>
-class ShallNotBeTextureError
-    : public MaterialError<ShallNotBeTextureError> {
+class ShallNotBeTextureError : public MaterialError<ShallNotBeTextureError> {
 public:
-  constexpr static inline std::u8string_view code =
-      u8"shall_not_be_texture";
+  constexpr static inline std::u8string_view code = u8"shall_not_be_texture";
 
   ShallNotBeTextureError(std::u8string_view material_name_,
-                                  std::u8string_view property_name_)
+                         std::u8string_view property_name_)
       : MaterialError(material_name_), _propertyName(property_name_) {
   }
 
@@ -47,11 +45,9 @@ private:
   std::u8string _propertyName;
 };
 
-void to_json(nlohmann::json &j_,
-             const ShallNotBeTextureError &error_) {
+void to_json(nlohmann::json &j_, const ShallNotBeTextureError &error_) {
   to_json(j_,
-          static_cast<const MaterialError<ShallNotBeTextureError> &>(
-              error_));
+          static_cast<const MaterialError<ShallNotBeTextureError> &>(error_));
   j_["property"] = forceTreatAsPlain(error_.property());
 }
 
@@ -60,23 +56,34 @@ template <typename T_> static T_ getMetalnessFromSpecular(const T_ *specular_) {
 }
 
 std::optional<GLTFBuilder::XXIndex>
-SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_) {
-  if (fbx_material_.Is<fbxsdk::FbxSurfaceLambert>()) {
-    return _convertLambertMaterial(
-        static_cast<fbxsdk::FbxSurfaceLambert &>(fbx_material_));
-  } else {
-    return {};
+SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                                 const MaterialUsage &material_usage_) {
+  MaterialConvertKey convertKey{fbx_material_, material_usage_};
+  auto r = _materialConvertCache.find(convertKey);
+  if (r == _materialConvertCache.end()) {
+    const auto glTFMaterialIndex =
+        [&]() -> std::optional<GLTFBuilder::XXIndex> {
+      if (fbx_material_.Is<fbxsdk::FbxSurfaceLambert>()) {
+        return _convertLambertMaterial(
+            static_cast<fbxsdk::FbxSurfaceLambert &>(fbx_material_),
+            material_usage_);
+      } else {
+        return {};
+      }
+    }();
+    r = _materialConvertCache.emplace(convertKey, glTFMaterialIndex).first;
   }
+  return r->second;
 }
 
 std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
-    fbxsdk::FbxSurfaceLambert &fbx_material_) {
+    fbxsdk::FbxSurfaceLambert &fbx_material_,
+    const MaterialUsage &material_usage_) {
   const auto materialName = std::string{fbx_material_.GetName()};
 
   auto forbidTextureProperty = [&](std::u8string_view property_name_) {
     _log(Logger::Level::warning,
-         ShallNotBeTextureError{forceTreatAsU8(materialName),
-                                         property_name_});
+         ShallNotBeTextureError{forceTreatAsU8(materialName), property_name_});
   };
 
   fx::gltf::Material glTFMaterial;
@@ -178,6 +185,12 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
     // Roughness factor
     glTFPbrMetallicRoughness.roughnessFactor =
         getRoughness(static_cast<float>(fbxPhong.Shininess.Get()));
+  }
+
+  // Alpha mode
+  if (glTFPbrMetallicRoughness.baseColorFactor[3] < 1.0f ||
+      material_usage_.hasTransparentVertex) {
+    glTFMaterial.alphaMode = fx::gltf::Material::AlphaMode::Blend;
   }
 
   auto glTFMaterailIndex =
