@@ -593,8 +593,8 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
                          ? channelCount / setCapacity
                          : (channelCount / setCapacity + 1);
     for (std::remove_const_t<decltype(set)> iSet = 0; iSet < set; ++iSet) {
-      const auto setElement =
-          (iSet == set - 1) ? channelCount % setCapacity : setCapacity;
+      const auto nSetElements =
+          (iSet == set - 1) ? (channelCount - iSet * setCapacity) : setCapacity;
       defaultBulk.addChannel(
           "JOINTS_" + std::to_string(iSet),                 // name
           glTFType,                                         // type
@@ -604,7 +604,7 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
           makeUntypedVertexCopyN<
               GLTFComponentTypeStorage<
                   fx::gltf::Accessor::ComponentType::UnsignedShort>,
-              NeutralVertexJointComponent>(setElement) // writer
+              NeutralVertexJointComponent>(nSetElements) // writer
       );
       defaultBulk.addChannel(
           "WEIGHTS_" + std::to_string(iSet),        // name
@@ -615,7 +615,7 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
           makeUntypedVertexCopyN<GLTFComponentTypeStorage<
                                      fx::gltf::Accessor::ComponentType::Float>,
                                  NeutralVertexWeightComponent>(
-              setElement) // writer
+              nSetElements) // writer
       );
     }
   }
