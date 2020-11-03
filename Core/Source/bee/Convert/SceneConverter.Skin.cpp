@@ -211,6 +211,11 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
       for (std::remove_const_t<decltype(nControlPointIndices)>
                iControlPointIndex = 0;
            iControlPointIndex < nControlPointIndices; ++iControlPointIndex) {
+        const auto weight = static_cast<NeutralVertexWeightComponent>(
+            controlPointWeights[iControlPointIndex]);
+        if (!weight) {
+          continue;
+        }
         const auto controlPointIndex = controlPointIndices[iControlPointIndex];
         auto &nChannels = channelsCount[controlPointIndex];
         assert(nChannels <= skinData.channels.size());
@@ -219,8 +224,7 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
         }
         auto &[joints, weights] = skinData.channels[nChannels];
         joints[controlPointIndex] = jointId;
-        weights[controlPointIndex] = static_cast<NeutralVertexWeightComponent>(
-            controlPointWeights[iControlPointIndex]);
+        weights[controlPointIndex] = weight;
         ++nChannels;
       }
     }
@@ -255,6 +259,7 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
 std::uint32_t
 SceneConverter::_createGLTFSkin(const NodeMeshesSkinData &skin_data_) {
   fx::gltf::Skin glTFSkin;
+  glTFSkin.name = skin_data_.name;
   glTFSkin.joints.resize(skin_data_.bones.size());
   std::transform(
       skin_data_.bones.begin(), skin_data_.bones.end(), glTFSkin.joints.begin(),
