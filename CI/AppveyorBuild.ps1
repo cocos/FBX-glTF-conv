@@ -107,10 +107,12 @@ foreach ($cmakeBuildType in @("Debug", "Release")) {
     "-S." `
     "-B$cmakeBuildDir"
 
-    cmake --build $cmakeBuildDir
+    # The build type really matters:
+    # https://stackoverflow.com/questions/24460486/cmake-build-type-is-not-being-used-in-cmakelists-txt
+    cmake --build $cmakeBuildDir --config $cmakeBuildType
 
     if ($platform -eq [Platform]::windows) {
-        cmake --build $cmakeBuildDir --target install
+        cmake --build $cmakeBuildDir --config $cmakeBuildType --target install
     } else {
         cmake --install $cmakeBuildDir
     }
