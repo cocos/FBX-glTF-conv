@@ -13,10 +13,7 @@
 #include <system_error>
 #include <unordered_map>
 #include <vector>
-#if defined(_MSC_VER)
-#undef snprintf
-#endif
-#include <nlohmann/json.hpp>
+#include <bee/polyfills/json.h>
 
 #if (defined(__cplusplus) && __cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1911))
 #define FX_GLTF_HAS_CPP_17

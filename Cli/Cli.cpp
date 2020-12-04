@@ -124,6 +124,12 @@ int main(int argc_, char *argv_[]) {
   }
   cliOptions->convertOptions.logger = logger.get();
 
+  // `0` means success
+  // `1` means error happened but it's captured and logged.
+  constexpr int exitOk = 0;
+  constexpr int exitFailureCaptured = 1;
+  int retval = exitOk;
+
   try {
     const auto glTFJson =
         bee::convert(cliOptions->inputFile, cliOptions->convertOptions);
@@ -134,23 +140,25 @@ int main(int argc_, char *argv_[]) {
     glTFJsonOStream << glTFJsonText;
     glTFJsonOStream.flush();
   } catch (const std::exception &exception) {
-    std::cerr << exception.what() << "\n";
+    logger->operator()(bee::Logger::Level::fatal, exception.what());
+    retval = exitFailureCaptured;
   }
 
   if (cliOptions->logFile) {
     const auto jsonLogger = dynamic_cast<const JsonLogger *>(logger.get());
     assert(jsonLogger);
     try {
-      const auto logFilePath = fs::path{ *cliOptions->logFile };
+      const auto logFilePath = fs::path{*cliOptions->logFile};
       fs::create_directories(logFilePath.parent_path());
-      std::ofstream jsonLogOStream{ logFilePath };
+      std::ofstream jsonLogOStream{logFilePath};
       jsonLogOStream.exceptions(std::ios::badbit | std::ios::failbit);
       const auto jsonLogText = jsonLogger->messages().dump(2);
       jsonLogOStream << jsonLogText;
     } catch (const std::exception &exception) {
       std::cerr << exception.what() << "\n";
+      retval = exitFailureCaptured;
     }
   }
 
-  return 0;
+  return retval;
 }

@@ -14,6 +14,8 @@ set (BeeCoreSource
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/ObjectDestroyer.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/LayerelementAccessor.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/Spreader.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/ConvertError.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/ConvertError.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/SceneConverter.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/SceneConverter.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/SceneConverter.Mesh.cpp"
@@ -31,9 +33,11 @@ add_library (BeeCore SHARED ${BeeCoreSource})
 
 set_target_properties (BeeCore PROPERTIES CXX_STANDARD 20)
 
-target_compile_definitions (BeeCore PRIVATE BEE_EXPORT FBXSDK_SHARED NOMINMAX)
+target_compile_definitions (BeeCore PRIVATE BEE_EXPORT FBXSDK_SHARED NOMINMAX HAVE_SNPRINTF)
 
 target_include_directories (BeeCore PRIVATE ${BeeCoreIncludeDirectories} "${CMAKE_CURRENT_LIST_DIR}/fx/include")
+
+target_include_directories (BeeCore PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/nlohmann-json")
 
 target_include_directories (BeeCore PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/std.filesystem")
 if (POLYFILLS_STD_FILESYSTEM)

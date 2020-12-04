@@ -2,7 +2,7 @@
 #pragma once
 
 #include <bee/BEE_API.h>
-#include <nlohmann/json.hpp>
+#include <bee/polyfills/json.h>
 #include <optional>
 #include <string>
 #include <string_view>

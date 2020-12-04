@@ -7,6 +7,8 @@ set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 20)
 
 target_include_directories (FBX-glTF-conv PRIVATE ${BeeCoreIncludeDirectories})
 
+target_include_directories (FBX-glTF-conv PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/nlohmann-json")
+
 target_include_directories (FBX-glTF-conv PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/std.filesystem")
 if (POLYFILLS_STD_FILESYSTEM)
     message (STATUS "We're using polyfill <filesystem>")
