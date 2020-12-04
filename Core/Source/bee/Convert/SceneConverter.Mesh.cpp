@@ -20,13 +20,13 @@ void to_json(nlohmann::json &j_, const MultiMaterialLayersError &error_) {
   to_json(j_, static_cast<const MeshError<MultiMaterialLayersError> &>(error_));
 }
 
-class UnsupportedMaterialMappingModeError
-    : public MeshError<UnsupportedMaterialMappingModeError> {
+class UnexpectedMaterialMappingModeError
+    : public MeshError<UnexpectedMaterialMappingModeError> {
 public:
   constexpr static inline std::u8string_view code =
-      u8"unsupported_material_mapping_mode";
+      u8"unexpected_material_mapping_mode";
 
-  UnsupportedMaterialMappingModeError(
+  UnexpectedMaterialMappingModeError(
       fbxsdk::FbxMesh &mesh_, fbxsdk::FbxLayerElement::EMappingMode mode_)
       : MeshError(mesh_), _mode(mode_) {
   }
@@ -40,9 +40,9 @@ private:
 };
 
 void to_json(nlohmann::json &j_,
-             const UnsupportedMaterialMappingModeError &error_) {
+             const UnexpectedMaterialMappingModeError &error_) {
   to_json(j_,
-          static_cast<const MeshError<UnsupportedMaterialMappingModeError> &>(
+          static_cast<const MeshError<UnexpectedMaterialMappingModeError> &>(
               error_));
   j_["mode"] = error_.mode();
 }
@@ -114,9 +114,7 @@ SceneConverter::_convertNodeMeshes(
         *fbxMesh, meshName, vertexTransformX, normalTransformX, fbxShapes,
         skinInfluenceChannels, materialUsage);
 
-    auto materialIndex = _getTheUniqueMaterialIndex(*fbxMesh);
-    if (materialIndex >= 0) {
-      const auto fbxMaterial = fbx_node_.GetMaterial(materialIndex);
+    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh)) {
       if (auto glTFMaterialIndex =
               _convertMaterial(*fbxMaterial, materialUsage)) {
         glTFPrimitive.material = *glTFMaterialIndex;
@@ -208,9 +206,10 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
   const auto controlPoints = fbx_mesh_.GetControlPoints();
   auto stagingVertex = untypedVertexAllocator.allocate();
   const auto processPolygonVertex =
-      [&](int polygon_vertex_index_) -> UniqueVertexIndex {
+      [&](const FbxLayerElementAccessParams &vertex_access_params_)
+      -> UniqueVertexIndex {
+    const auto iControlPoint = vertex_access_params_.controlPointIndex;
     auto [stagingVertexData, stagingVertexIndex] = stagingVertex;
-    auto iControlPoint = meshPolygonVertices[polygon_vertex_index_];
 
     fbxsdk::FbxVector4 transformedBasePosition;
     fbxsdk::FbxVector4 transformedBaseNormal;
@@ -230,7 +229,7 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
     // Normal
     if (vertexLayout.normal) {
       auto [offset, element] = *vertexLayout.normal;
-      auto normal = element(iControlPoint, polygon_vertex_index_);
+      auto normal = element(vertex_access_params_);
       if (normal_transform_) {
         normal = normal_transform_->MultNormalize(normal);
       }
@@ -242,7 +241,7 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
 
     // UV
     for (auto [offset, element] : vertexLayout.uvs) {
-      auto uv = element(iControlPoint, polygon_vertex_index_);
+      auto uv = element(vertex_access_params_);
       if (!_options.noFlipV) {
         uv[1] = 1.0 - uv[1];
       }
@@ -253,7 +252,7 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
 
     // Vertex color
     for (auto [offset, element] : vertexLayout.colors) {
-      auto color = element(iControlPoint, polygon_vertex_index_);
+      auto color = element(vertex_access_params_);
       if (!hasTransparentVertex && color.mAlpha != 1.0) {
         hasTransparentVertex = true;
       }
@@ -292,7 +291,7 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
 
       if (normalElement && vertexLayout.normal) {
         auto [offset, element] = *normalElement;
-        auto normal = element(iControlPoint, polygon_vertex_index_);
+        auto normal = element(vertex_access_params_);
         if (normal_transform_) {
           normal = normal_transform_->MultNormalize(normal);
         }
@@ -316,7 +315,12 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
   std::vector<UniqueVertexIndex> indices(nMeshPolygonVertices);
   for (std::remove_const_t<decltype(nMeshPolygonVertices)> iPolygonVertex = 0;
        iPolygonVertex < nMeshPolygonVertices; ++iPolygonVertex) {
-    indices[iPolygonVertex] = processPolygonVertex(iPolygonVertex);
+    const auto iControlPoint = meshPolygonVertices[iPolygonVertex];
+    FbxLayerElementAccessParams params;
+    params.controlPointIndex = iControlPoint;
+    params.polygonVertexIndex = iPolygonVertex;
+    params.polygonIndex = iPolygonVertex / 3;
+    indices[iPolygonVertex] = processPolygonVertex(params);
   }
 
   untypedVertexAllocator.pop_back();
@@ -683,26 +687,49 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
   return bulks;
 }
 
-int SceneConverter::_getTheUniqueMaterialIndex(fbxsdk::FbxMesh &fbx_mesh_) {
+fbxsdk::FbxSurfaceMaterial *
+SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
   const auto nElementMaterialCount = fbx_mesh_.GetElementMaterialCount();
   if (!nElementMaterialCount) {
-    return -1;
+    return nullptr;
   }
+
   if (nElementMaterialCount > 1) {
     _log(Logger::Level::warning, MultiMaterialLayersError{fbx_mesh_});
   }
-  auto elementMaterial0 = fbx_mesh_.GetElementMaterial(0);
-  if (auto mappingMode = elementMaterial0->GetMappingMode();
-      mappingMode != fbxsdk::FbxLayerElement::eAllSame) {
-    _log(Logger::Level::warning,
-         UnsupportedMaterialMappingModeError(fbx_mesh_, mappingMode));
+
+  if (fbx_mesh_.GetPolygonCount() == 0 ||
+      fbx_mesh_.GetControlPointsCount() == 0) {
+    _log(Logger::Level::verbose, u8"Seems like there are material elements in "
+                                 u8"mesh, but the mesh is empty.");
+    return nullptr;
   }
-  auto &indexArray = elementMaterial0->GetIndexArray();
-  if (!indexArray.GetCount()) {
-    // Empty mesh?
-    _log(Logger::Level::verbose, u8"Empty mesh encountered.");
-    return -1;
+
+  for (std::remove_const_t<decltype(nElementMaterialCount)> iMaterialLayer = 0;
+       iMaterialLayer < nElementMaterialCount; ++iMaterialLayer) {
+    const auto elementMaterial = fbx_mesh_.GetElementMaterial(iMaterialLayer);
+    const auto mappingMode = elementMaterial->GetMappingMode();
+    if (mappingMode == fbxsdk::FbxLayerElement::eNone) {
+      _log(Logger::Level::verbose, u8"We skipped a possible empty material.");
+      continue;
+    }
+
+    if (mappingMode != fbxsdk::FbxLayerElement::eAllSame) {
+      _log(Logger::Level::warning,
+           UnexpectedMaterialMappingModeError(fbx_mesh_, mappingMode));
+    }
+
+    FbxLayerElementAccessParams params;
+    params.controlPointIndex = 0;
+    params.polygonIndex = 0;
+    params.polygonVertexIndex = 0;
+
+    auto materialIndexAccessor = makeFbxLayerElementAccessor(*elementMaterial);
+    auto material = materialIndexAccessor(params);
+
+    return material;
   }
-  return indexArray.GetAt(0);
+
+  return nullptr;
 }
 } // namespace bee

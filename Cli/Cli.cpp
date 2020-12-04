@@ -27,7 +27,8 @@ public:
   void operator()(Level level_, std::u8string_view message_) override {
     auto &stream = level_ >= bee::Logger::Level::error ? std::cerr : std::cout;
     stream << std::string{reinterpret_cast<const char *>(message_.data()),
-                          message_.size()};
+                          message_.size()}
+           << "\n";
   }
 };
 
