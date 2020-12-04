@@ -20,33 +20,6 @@ void to_json(nlohmann::json &j_, const MultiMaterialLayersError &error_) {
   to_json(j_, static_cast<const MeshError<MultiMaterialLayersError> &>(error_));
 }
 
-class UnexpectedMaterialMappingModeError
-    : public MeshError<UnexpectedMaterialMappingModeError> {
-public:
-  constexpr static inline std::u8string_view code =
-      u8"unexpected_material_mapping_mode";
-
-  UnexpectedMaterialMappingModeError(
-      fbxsdk::FbxMesh &mesh_, fbxsdk::FbxLayerElement::EMappingMode mode_)
-      : MeshError(mesh_), _mode(mode_) {
-  }
-
-  fbxsdk::FbxLayerElement::EMappingMode mode() const {
-    return _mode;
-  }
-
-private:
-  fbxsdk::FbxLayerElement::EMappingMode _mode;
-};
-
-void to_json(nlohmann::json &j_,
-             const UnexpectedMaterialMappingModeError &error_) {
-  to_json(j_,
-          static_cast<const MeshError<UnexpectedMaterialMappingModeError> &>(
-              error_));
-  j_["mode"] = error_.mode();
-}
-
 template <typename Dst_, typename Src_, std::size_t N_>
 static void untypedVertexCopy(std::byte *out_, const std::byte *in_) {
   auto in = reinterpret_cast<const Src_ *>(in_);
@@ -715,8 +688,13 @@ SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
     }
 
     if (mappingMode != fbxsdk::FbxLayerElement::eAllSame) {
-      _log(Logger::Level::warning,
-           UnexpectedMaterialMappingModeError(fbx_mesh_, mappingMode));
+      // It might be a BUG of FBX SDK.
+      // We perform the `splitMeshesByMaterial()` and it should be all same
+      // then. But as FBX SDK 2020, the mapping mode is not changed but all
+      // elements are same. Let's ignore it.
+      _log(Logger::Level::verbose,
+           u8"The material mapping mode is not AllSame, even if it should be "
+           u8"since we splited it previously.");
     }
 
     FbxLayerElementAccessParams params;
