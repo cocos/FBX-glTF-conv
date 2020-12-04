@@ -296,7 +296,7 @@ private:
   std::list<VertexBulk>
   _typeVertices(const FbxMeshVertexLayout &vertex_layout_);
 
-  int _getTheUniqueMaterialIndex(fbxsdk::FbxMesh &fbx_mesh_);
+  fbxsdk::FbxSurfaceMaterial *_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_);
 
   /// <summary>
   /// Things get even more complicated if there are more than one mesh attached to a node.
