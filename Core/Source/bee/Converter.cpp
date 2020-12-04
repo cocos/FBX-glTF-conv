@@ -3,16 +3,13 @@
 #include <fbxsdk.h>
 #include <iostream>
 #include <map>
-#if defined(_MSC_VER)
-#undef snprintf
-#endif
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/ObjectDestroyer.h>
 #include <bee/Converter.h>
 #include <bee/polyfills/filesystem.h>
 #include <cppcodec/base64_default_rfc4648.hpp>
 #include <fmt/format.h>
-#include <nlohmann/json.hpp>
+#include <bee/polyfills/json.h>
 
 namespace bee {
 class Converter {

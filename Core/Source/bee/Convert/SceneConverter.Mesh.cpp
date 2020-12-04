@@ -20,6 +20,33 @@ void to_json(nlohmann::json &j_, const MultiMaterialLayersError &error_) {
   to_json(j_, static_cast<const MeshError<MultiMaterialLayersError> &>(error_));
 }
 
+class UnsupportedMaterialMappingModeError
+    : public MeshError<UnsupportedMaterialMappingModeError> {
+public:
+  constexpr static inline std::u8string_view code =
+      u8"unsupported_material_mapping_mode";
+
+  UnsupportedMaterialMappingModeError(
+      fbxsdk::FbxMesh &mesh_, fbxsdk::FbxLayerElement::EMappingMode mode_)
+      : MeshError(mesh_), _mode(mode_) {
+  }
+
+  fbxsdk::FbxLayerElement::EMappingMode mode() const {
+    return _mode;
+  }
+
+private:
+  fbxsdk::FbxLayerElement::EMappingMode _mode;
+};
+
+void to_json(nlohmann::json &j_,
+             const UnsupportedMaterialMappingModeError &error_) {
+  to_json(j_,
+          static_cast<const MeshError<UnsupportedMaterialMappingModeError> &>(
+              error_));
+  j_["mode"] = error_.mode();
+}
+
 template <typename Dst_, typename Src_, std::size_t N_>
 static void untypedVertexCopy(std::byte *out_, const std::byte *in_) {
   auto in = reinterpret_cast<const Src_ *>(in_);
@@ -662,15 +689,20 @@ int SceneConverter::_getTheUniqueMaterialIndex(fbxsdk::FbxMesh &fbx_mesh_) {
     return -1;
   }
   if (nElementMaterialCount > 1) {
-    _log(Logger::Level::warning,
-         MultiMaterialLayersError{fbx_mesh_.GetNode()->GetName()});
+    _log(Logger::Level::warning, MultiMaterialLayersError{fbx_mesh_});
   }
   auto elementMaterial0 = fbx_mesh_.GetElementMaterial(0);
-  if (elementMaterial0->GetMappingMode() != fbxsdk::FbxLayerElement::eAllSame) {
-    throw std::runtime_error("Mesh is not splitted correctly!");
+  if (auto mappingMode = elementMaterial0->GetMappingMode();
+      mappingMode != fbxsdk::FbxLayerElement::eAllSame) {
+    _log(Logger::Level::warning,
+         UnsupportedMaterialMappingModeError(fbx_mesh_, mappingMode));
   }
   auto &indexArray = elementMaterial0->GetIndexArray();
-  assert(indexArray.GetCount());
+  if (!indexArray.GetCount()) {
+    // Empty mesh?
+    _log(Logger::Level::verbose, u8"Empty mesh encountered.");
+    return -1;
+  }
   return indexArray.GetAt(0);
 }
 } // namespace bee

@@ -1,8 +1,9 @@
 
 #pragma once
 
+#include <bee/polyfills/json.h>
 #include <cstdint>
-#include <nlohmann/json.hpp>
+#include <fbxsdk.h>
 #include <string>
 #include <string_view>
 
@@ -19,6 +20,9 @@ void to_json(nlohmann::json &j_, const ErrorBase<FinalError_> &error_) {
 template <typename FinalError_>
 class NodeError : public ErrorBase<FinalError_> {
 public:
+  NodeError(const fbxsdk::FbxNode &node_) : NodeError(node_.GetName()) {
+  }
+
   NodeError(std::string_view node_) : _node(node_) {
   }
 
@@ -40,6 +44,11 @@ template <typename FinalError_>
 class MeshError : public NodeError<FinalError_> {
 public:
   using NodeError<FinalError_>::NodeError;
+
+  MeshError(const fbxsdk::FbxMesh &mesh_)
+      : MeshError(mesh_.GetNode() == nullptr ? mesh_.GetName()
+                                             : mesh_.GetNode()->GetName()) {
+  }
 };
 
 template <typename FinalError_>
@@ -48,3 +57,10 @@ void to_json(nlohmann::json &j_, const MeshError<FinalError_> &error_) {
   j_["mesh"] = error_.node();
 }
 } // namespace bee
+
+namespace nlohmann {
+template <> struct adl_serializer<fbxsdk::FbxLayerElement::EMappingMode> {
+  static void to_json(json &j_,
+                      fbxsdk::FbxLayerElement::EMappingMode mapping_mode_);
+};
+} // namespace nlohmann
