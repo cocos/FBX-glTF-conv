@@ -13,7 +13,7 @@ struct FbxLayerElementAccessParams {
 
 template <typename Value_>
 using FbxLayerElementAccessor =
-    std::function<const Value_ &(const FbxLayerElementAccessParams &params_)>;
+    std::function<Value_(const FbxLayerElementAccessParams &params_)>;
 
 template <typename Value_>
 FbxLayerElementAccessor<Value_> makeFbxLayerElementAccessor(
@@ -21,7 +21,7 @@ FbxLayerElementAccessor<Value_> makeFbxLayerElementAccessor(
     Value_ default_value_ = Value_{}) {
 
   const auto getVal =
-      [&layer_element_]() -> std::function<const Value_ &(int i_)> {
+      [&layer_element_]() -> std::function<Value_(int i_)> {
     using EReferenceMode = fbxsdk::FbxLayerElement::EReferenceMode;
     const auto referenceMode = layer_element_.GetReferenceMode();
     if (referenceMode == EReferenceMode::eDirect) {
