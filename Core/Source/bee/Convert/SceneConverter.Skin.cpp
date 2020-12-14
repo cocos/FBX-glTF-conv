@@ -145,6 +145,29 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
     channel.weights.resize(nControlPoints);
   };
 
+  struct ApplyUnitScale {
+  private:
+    fbxsdk::FbxAMatrix _trans;
+    fbxsdk::FbxAMatrix _invTrans;
+
+  public:
+    ApplyUnitScale(fbxsdk::FbxDouble s_) {
+      _trans.SetIdentity();
+      _trans.SetS(fbxsdk::FbxVector4{s_, s_, s_});
+      _invTrans = _trans.Inverse();
+    }
+
+    fbxsdk::FbxAMatrix operator()(const fbxsdk::FbxAMatrix &m_) const {
+      // Cancel our scale factor and apply and re-scale.
+      return _trans * m_ * _invTrans;
+    }
+  };
+
+  std::optional<ApplyUnitScale> applyUnitScale;
+  if (_unitScaleFactor) {
+    applyUnitScale.emplace(*_unitScaleFactor);
+  }
+
   const auto nSkinDeformers =
       fbx_mesh_.GetDeformerCount(fbxsdk::FbxDeformer::EDeformerType::eSkin);
   for (std::remove_const_t<decltype(nSkinDeformers)> iSkinDeformer = 0;
@@ -197,9 +220,12 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
         // http://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref__view_scene_2_draw_scene_8cxx_example_html
         const auto inverseBindMatrix =
             transformLinkMatrix.Inverse() * transformMatrix;
+        const auto inverseBindMatrixScaled =
+            applyUnitScale ? (*applyUnitScale)(inverseBindMatrix)
+                           : inverseBindMatrix;
 
         skinJoints.emplace_back(
-            MeshSkinData::Bone{*glTFNodeIndex, inverseBindMatrix});
+            MeshSkinData::Bone{*glTFNodeIndex, inverseBindMatrixScaled});
         rJointIndex = std::prev(skinJoints.end());
       }
       const auto jointId =

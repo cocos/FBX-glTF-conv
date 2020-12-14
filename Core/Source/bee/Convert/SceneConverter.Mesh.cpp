@@ -145,8 +145,8 @@ SceneConverter::_getGeometrixTransform(fbxsdk::FbxNode &fbx_node_) {
       fbx_node_.GetGeometricRotation(fbxsdk::FbxNode::EPivotSet::eSourcePivot);
   const auto meshScaling =
       fbx_node_.GetGeometricScaling(fbxsdk::FbxNode::EPivotSet::eSourcePivot);
-  const fbxsdk::FbxMatrix vertexTransform =
-      fbxsdk::FbxAMatrix{meshTranslation, meshRotation, meshScaling};
+  const fbxsdk::FbxMatrix vertexTransform = fbxsdk::FbxAMatrix{
+      _applyUnitScaleFactorV3(meshTranslation), meshRotation, meshScaling};
   const fbxsdk::FbxMatrix normalTransform =
       fbxsdk::FbxAMatrix{fbxsdk::FbxVector4(), meshRotation, meshScaling};
   auto normalTransformIT = normalTransform.Inverse().Transpose();
@@ -189,7 +189,7 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
 
     // Position
     {
-      auto position = controlPoints[iControlPoint];
+      auto position = _applyUnitScaleFactorV3(controlPoints[iControlPoint]);
       if (vertex_transform_) {
         position = vertex_transform_->MultNormalize(position);
       }
@@ -252,7 +252,8 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
     // Shapes
     for (auto &[controlPoints, normalElement] : vertexLayout.shapes) {
       {
-        auto shapePosition = controlPoints.element[iControlPoint];
+        auto shapePosition =
+            _applyUnitScaleFactorV3(controlPoints.element[iControlPoint]);
         if (vertex_transform_) {
           shapePosition = vertex_transform_->MultNormalize(shapePosition);
         }

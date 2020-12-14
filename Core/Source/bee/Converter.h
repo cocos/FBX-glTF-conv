@@ -48,6 +48,12 @@ public:
 };
 
 struct ConvertOptions {
+  enum class UnitConversion {
+    disabled,
+    hierarchyLevel,
+    geometryLevel,
+  };
+
   std::u8string out;
 
   GLTFWriter *writer = nullptr;
@@ -55,6 +61,8 @@ struct ConvertOptions {
   std::optional<std::u8string_view> fbmDir;
 
   bool useDataUriForBuffers = true;
+
+  UnitConversion unitConversion = UnitConversion::geometryLevel;
 
   bool noFlipV = false;
 
