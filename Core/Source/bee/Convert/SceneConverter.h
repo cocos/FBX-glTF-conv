@@ -225,6 +225,15 @@ private:
   std::unordered_map<fbxsdk::FbxUInt64, std::optional<GLTFBuilder::XXIndex>>
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
+  std::optional<fbxsdk::FbxDouble> _unitScaleFactor = 1.0;
+
+  inline fbxsdk::FbxVector4
+  _applyUnitScaleFactorV3(const fbxsdk::FbxVector4 &v_) const {
+    return _unitScaleFactor ? fbxsdk::FbxVector4{v_[0] * (*_unitScaleFactor),
+                                                 v_[1] * (*_unitScaleFactor),
+                                                 v_[2] * (*_unitScaleFactor)}
+                            : v_;
+  }
 
   /// <summary>
   /// Prefer std::u8string_view overloading.

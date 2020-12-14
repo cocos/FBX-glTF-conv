@@ -83,6 +83,7 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
   std::string outFile;
   std::string fbmDir;
   std::string logFile;
+  std::string unitConversion;
   std::vector<std::string> textureSearchLocations;
 
   const std::array<std::u8string_view, 2> tslMacros = {u8"cwd",
@@ -105,6 +106,17 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
       clipp::option("--no-flip-v")
           .set(cliArgs.convertOptions.noFlipV)
           .doc("Do not flip V texture coordinates."),
+
+      clipp::option("--unit-conversion") &
+          clipp::value("unit-conversion", unitConversion)
+              .doc("How to perform unit converseion.\n"
+                   "  - `geometry-level`(default) Do unit conversion at "
+                   "geometry "
+                   "level.\n"
+                   "  - `hierarchy-level` Do unit conversion at hierarchy "
+                   "level.\n"
+                   "  - `disabled` Disable unit conversion. This may cause the "
+                   "generated glTF does't conform to glTF specification."),
 
       clipp::option("--no-texture-resolution")
           .set(cliArgs.convertOptions.textureResolution.disabled)
@@ -189,6 +201,21 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
     std::cout << make_man_page(
         cli, commandLineArgsU8->empty() ? "" : commandLineArgsU8->front());
     return {};
+  }
+
+  if (!unitConversion.empty()) {
+    if (unitConversion == "geometry-level") {
+      cliArgs.convertOptions.unitConversion =
+          bee::ConvertOptions::UnitConversion::geometryLevel;
+    } else if (unitConversion == "hierarchy-level") {
+      cliArgs.convertOptions.unitConversion =
+          bee::ConvertOptions::UnitConversion::hierarchyLevel;
+    } else if (unitConversion == "disabled") {
+      cliArgs.convertOptions.unitConversion =
+          bee::ConvertOptions::UnitConversion::disabled;
+    } else {
+      std::cerr << "Unknown unit conversion option: " << unitConversion << "\n";
+    }
   }
 
   cliArgs.inputFile.assign(inputFile.begin(), inputFile.end());

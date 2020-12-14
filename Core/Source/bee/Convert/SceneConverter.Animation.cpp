@@ -367,7 +367,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     const auto time = fbxTime.GetSecondDouble();
     fbxsdk::FbxVector4 translation;
     if (isTranslationAnimated) {
-      translation = localTransform.GetT();
+      translation = _applyUnitScaleFactorV3(localTransform.GetT());
     }
     fbxsdk::FbxQuaternion rotation;
     if (isRotationAnimated) {

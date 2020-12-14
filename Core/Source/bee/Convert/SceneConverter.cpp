@@ -88,16 +88,28 @@ void SceneConverter::_prepareScene() {
   fbxsdk::FbxAxisSystem::OpenGL.ConvertScene(&_fbxScene);
 
   // Convert system unit
-  if (_fbxScene.GetGlobalSettings().GetSystemUnit() !=
-      fbxsdk::FbxSystemUnit::m) {
-    fbxsdk::FbxSystemUnit::ConversionOptions conversionOptions;
-    conversionOptions.mConvertRrsNodes = false;
-    conversionOptions.mConvertLimits = true;
-    conversionOptions.mConvertClusters = true;
-    conversionOptions.mConvertLightIntensity = true;
-    conversionOptions.mConvertPhotometricLProperties = true;
-    conversionOptions.mConvertCameraClipPlanes = true;
-    fbxsdk::FbxSystemUnit::m.ConvertScene(&_fbxScene, conversionOptions);
+  if (const auto fbxFileSystemUnit =
+          _fbxScene.GetGlobalSettings().GetSystemUnit();
+      fbxFileSystemUnit != fbxsdk::FbxSystemUnit::m) {
+    // FBX SDK's `convertScene` is not perfectly.
+    // The problem occurs when bind a FBX model under bones in another FBX
+    // model. See: https://github.com/facebookincubator/FBX2glTF/issues/29
+    // https://github.com/facebookincubator/FBX2glTF/pull/63
+    if (_options.unitConversion ==
+        ConvertOptions::UnitConversion::geometryLevel) {
+      _unitScaleFactor.emplace(
+          fbxsdk::FbxSystemUnit::m.GetConversionFactorFrom(fbxFileSystemUnit));
+    } else if (_options.unitConversion ==
+               ConvertOptions::UnitConversion::hierarchyLevel) {
+      fbxsdk::FbxSystemUnit::ConversionOptions conversionOptions;
+      conversionOptions.mConvertRrsNodes = true;
+      conversionOptions.mConvertLimits = true;
+      conversionOptions.mConvertClusters = true;
+      conversionOptions.mConvertLightIntensity = true;
+      conversionOptions.mConvertPhotometricLProperties = true;
+      conversionOptions.mConvertCameraClipPlanes = true;
+      fbxsdk::FbxSystemUnit::m.ConvertScene(&_fbxScene, conversionOptions);
+    }
   }
 
   // Trianglute the whole scene
@@ -203,14 +215,15 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
 
   if (auto fbxLocalTransform = fbx_node_.EvaluateLocalTransform();
       !fbxLocalTransform.IsIdentity()) {
-    if (auto fbxT = fbxLocalTransform.GetT(); !fbxT.IsZero(3)) {
-      FbxVec3Spreader::spread(fbxT, glTFNode.translation.data());
+    if (const auto fbxT = fbxLocalTransform.GetT(); !fbxT.IsZero(3)) {
+      FbxVec3Spreader::spread(_applyUnitScaleFactorV3(fbxT),
+                              glTFNode.translation.data());
     }
-    if (auto fbxR = fbxLocalTransform.GetQ();
+    if (const auto fbxR = fbxLocalTransform.GetQ();
         fbxR.Compare(fbxsdk::FbxQuaternion{})) {
       FbxQuatSpreader::spread(fbxR, glTFNode.rotation.data());
     }
-    if (auto fbxS = fbxLocalTransform.GetS();
+    if (const auto fbxS = fbxLocalTransform.GetS();
         fbxS[0] != 1. || fbxS[1] != 1. || fbxS[2] != 1.) {
       FbxVec3Spreader::spread(fbxS, glTFNode.scale.data());
     }
