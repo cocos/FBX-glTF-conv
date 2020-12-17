@@ -7,3 +7,5 @@ out/
 
 
 vcpkg_installed/
+
+.vscode/settings.json

@@ -159,8 +159,8 @@ std::string SceneConverter::_convertName(const char *fbx_name_) {
   return fbx_name_;
 }
 
-std::string SceneConverter::_convertFileName(const char *fbx_file_name_) {
-  return fbx_file_name_;
+std::u8string SceneConverter::_convertFileName(const char *fbx_file_name_) {
+  return std::u8string{reinterpret_cast<const char8_t *>(fbx_file_name_)};
 }
 
 GLTFBuilder::XXIndex
