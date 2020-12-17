@@ -262,7 +262,7 @@ private:
 
   std::string _convertName(const char *fbx_name_);
 
-  std::string _convertFileName(const char *fbx_file_name_);
+  std::u8string _convertFileName(const char *fbx_file_name_);
 
   GLTFBuilder::XXIndex _convertScene(fbxsdk::FbxScene &fbx_scene_);
 
