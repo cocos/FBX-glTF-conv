@@ -10,6 +10,11 @@ SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
   const auto fbxFileTexture =
       fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
   if (!fbxFileTexture) {
+    const auto fbxTexture = fbx_property_.GetSrcObject<fbxsdk::FbxTexture>();
+    if (fbxTexture) {
+      _log(Logger::Level::verbose,
+           u8"The property is texture but is not file texture. It's ignored.");
+    }
     return {};
   } else {
     auto fbxTextureId = fbxFileTexture->GetUniqueID();
