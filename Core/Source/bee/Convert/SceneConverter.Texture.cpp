@@ -116,9 +116,9 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
   }
 
   glTFImage.extensionsAndExtras["extras"]["FBX-glTF-conv"]["fileName"] =
-      forceTreatAsPlain(imageFileName);
+      forceTreatAsPlain(imageFileName.u8string());
   glTFImage.extensionsAndExtras["extras"]["FBX-glTF-conv"]["relativeFileName"] =
-      forceTreatAsPlain(imageFileNameRelative);
+      forceTreatAsPlain(imageFileNameRelative.u8string());
 
   auto glTFImageIndex =
       _glTFBuilder.add(&fx::gltf::Document::images, std::move(glTFImage));

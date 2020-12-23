@@ -159,8 +159,19 @@ std::string SceneConverter::_convertName(const char *fbx_name_) {
   return fbx_name_;
 }
 
-std::u8string SceneConverter::_convertFileName(const char *fbx_file_name_) {
-  return std::u8string{reinterpret_cast<const char8_t *>(fbx_file_name_)};
+std::filesystem::path
+SceneConverter::_convertFileName(const char *fbx_file_name_) {
+  std::u8string u8name{reinterpret_cast<const char8_t *>(fbx_file_name_)};
+  // Some FBX files contain non-UTF8 encoded file names and will cause
+  // `std::filesystem::path` to crash.
+  // https://forums.autodesk.com/t5/fbx-forum/fbxfiletexture-getxfilename-may-return-incorrect-utf8-encoded/td-p/9957667
+  try {
+    return u8name;
+  } catch (const std::exception &) {
+    _log(Logger::Level::verbose,
+         u8"The fbx file name " + u8name + u8" is not correctly UTF8 encoded.");
+    return {};
+  }
 }
 
 GLTFBuilder::XXIndex
