@@ -159,7 +159,7 @@ std::string SceneConverter::_convertName(const char *fbx_name_) {
   return fbx_name_;
 }
 
-std::filesystem::path
+bee::filesystem::path
 SceneConverter::_convertFileName(const char *fbx_file_name_) {
   std::u8string u8name{reinterpret_cast<const char8_t *>(fbx_file_name_)};
   // Some FBX files contain non-UTF8 encoded file names and will cause
