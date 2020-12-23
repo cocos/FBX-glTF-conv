@@ -169,7 +169,7 @@ SceneConverter::_convertFileName(const char *fbx_file_name_) {
     return u8name;
   } catch (const std::exception &) {
     _log(Logger::Level::verbose,
-         u8"The fbx file name " + u8name + u8" is not correctly UTF8 encoded.");
+         u8"The fbx file name is not correctly UTF8 encoded.");
     return {};
   }
 }
