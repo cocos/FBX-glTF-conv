@@ -242,6 +242,10 @@ private:
     _log(level_, std::u8string_view{message_});
   }
 
+  void _log(bee::Logger::Level level_, const std::u8string &message_) {
+    _log(level_, std::u8string_view{message_});
+  }
+
   void _log(bee::Logger::Level level_, std::u8string_view message_);
 
   void _log(bee::Logger::Level level_, Json &&message_);
@@ -262,7 +266,7 @@ private:
 
   std::string _convertName(const char *fbx_name_);
 
-  std::u8string _convertFileName(const char *fbx_file_name_);
+  std::filesystem::path _convertFileName(const char *fbx_file_name_);
 
   GLTFBuilder::XXIndex _convertScene(fbxsdk::FbxScene &fbx_scene_);
 
