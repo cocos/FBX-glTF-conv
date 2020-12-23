@@ -266,7 +266,7 @@ private:
 
   std::string _convertName(const char *fbx_name_);
 
-  std::filesystem::path _convertFileName(const char *fbx_file_name_);
+  bee::filesystem::path _convertFileName(const char *fbx_file_name_);
 
   GLTFBuilder::XXIndex _convertScene(fbxsdk::FbxScene &fbx_scene_);
 
