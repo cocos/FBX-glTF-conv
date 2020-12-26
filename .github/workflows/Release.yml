@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     branches:
-      - GitHubWorkflow
+      - master
 jobs:
   get_release_info_job:
     name: Get Release Info
