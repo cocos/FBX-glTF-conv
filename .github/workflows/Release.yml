@@ -1,0 +1,122 @@
+name: Release
+on:
+  push:
+    branches:
+      - master
+jobs:
+  get_release_info_job:
+    name: Get Release Info
+    runs-on: windows-latest
+    outputs:
+      is_release_commit: ${{ steps.get_release_info.outputs.is_release_commit }}
+      version: ${{ steps.get_release_info.outputs.version }}
+      release_upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: get_release_info
+        name: Get Release Info
+        shell: pwsh
+        run: |
+          #Requires -Version "6.1"
+          $semverRegex = "([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?"
+          $releaseRegex = "Release ($semverRegex)"
+          $commitMessage = "$(git log --no-merges -1 --oneline)"
+          $releaseMatches = $commitMessage -Match $releaseRegex
+          if (-not $releaseMatches) {
+            Write-Output "::set-output name=is_release_commit::false"
+            exit 0
+          }
+          $version = $Matches[1]
+          $tagName = "release-v$version"
+          $releaseName = "Release $version"
+          Write-Host @"
+          Version: $version
+          Tag Name: $tagName
+          "@
+          Write-Output "::set-output name=is_release_commit::true"
+          Write-Output "::set-output name=version::$version"
+          Write-Output "::set-output name=tag_name::$tagName"
+          Write-Output "::set-output name=release_name::$releaseName"
+      - id: create_release
+        if: ${{ steps.get_release_info.outputs.is_release_commit == 'true' }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{steps.get_release_info.outputs.tag_name}}
+          release_name: ${{steps.get_release_info.outputs.release_name}}
+          draft: true
+          prerelease: true
+  release_windows_job:
+    name: Release Windows
+    runs-on: windows-latest
+    needs: get_release_info_job
+    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
+    steps:
+      - name: Print Debug Info
+        shell: pwsh
+        run: |
+          Write-Host @"
+          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
+          Version: ${{ needs.get_release_info_job.outputs.version }}
+          Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          "@
+      - uses: actions/checkout@v2
+      - id: get_this_release_info
+        shell: pwsh
+        run: |
+          #Requires -Version "6.1"
+          $osName = if ($IsWindows) { "win32" } else { "darwin" }
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.zip"
+          Write-Output "::set-output name=artifact_path::$artifactPath"
+      - id: build
+        name: Build
+        run: CI/GitHubBuild.ps1 -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
+        shell: pwsh
+      - id: upload-release-asset
+        name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          asset_path: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_name: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_content_type: application/zip
+
+  release_darwin_job:
+    name: Release MacOS
+    runs-on: macos-10.15
+    needs: get_release_info_job
+    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
+    steps:
+      - name: Print Debug Info
+        shell: pwsh
+        run: |
+          Write-Host @"
+          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
+          Version: ${{ needs.get_release_info_job.outputs.version }}
+          Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          "@
+      - uses: actions/checkout@v2
+      - id: get_this_release_info
+        shell: pwsh
+        run: |
+          #Requires -Version "6.1"
+          $osName = if ($IsWindows) { "win32" } else { "darwin" }
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.zip"
+          Write-Output "::set-output name=artifact_path::$artifactPath"
+      - id: build
+        name: Build
+        run: CI/GitHubBuild.ps1 -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
+        shell: pwsh
+      - id: upload-release-asset
+        name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          asset_path: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_name: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_content_type: application/zip
