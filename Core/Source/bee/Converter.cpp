@@ -1,15 +1,15 @@
 
-#include <cstring>
-#include <fbxsdk.h>
-#include <iostream>
-#include <map>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/ObjectDestroyer.h>
 #include <bee/Converter.h>
 #include <bee/polyfills/filesystem.h>
-#include <cppcodec/base64_default_rfc4648.hpp>
-#include <fmt/format.h>
 #include <bee/polyfills/json.h>
+#include <cppcodec/base64_default_rfc4648.hpp>
+#include <cstring>
+#include <fbxsdk.h>
+#include <fmt/format.h>
+#include <iostream>
+#include <map>
 
 namespace bee {
 class Converter {
@@ -130,10 +130,13 @@ private:
     if (options_.verbose) {
       if (options_.logger) {
         const auto major = fbxFileHeaderInfo->mFileVersion / 1000;
-        const auto minor = fbxFileHeaderInfo->mFileVersion % 1000;
+        auto minor = fbxFileHeaderInfo->mFileVersion % 1000;
+        while (minor != 0 && minor % 10 == 0) {
+          minor /= 10;
+        }
         (*options_.logger)(
             Logger::Level::verbose,
-            fmt::format(u8"FBX file version: {}.{:03}", major, 10));
+            fmt::format(u8"FBX file version: {}.{}", major, minor));
       }
     }
 
