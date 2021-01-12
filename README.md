@@ -31,6 +31,8 @@ But Cocos team has to find another approach because:
 
 - 🗸 Skinning
 
+  - ⌛ Cluster mode: additive
+
 - 🗸 Blend shapes(Morph targets)
 
 - 🗸 Animations

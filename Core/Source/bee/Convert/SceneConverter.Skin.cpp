@@ -168,6 +168,13 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
     applyUnitScale.emplace(*_unitScaleFactor);
   }
 
+  // const auto meshNode = fbx_mesh_.GetNode();
+  // const auto meshGeometricTransform =
+  //    meshNode ? std::get<0>(_getGeometrixTransform(*meshNode))
+  //             : fbxsdk::FbxMatrix{};
+  // const auto isIdentityMeshGeometricTransform =
+  //    meshGeometricTransform == fbxsdk::FbxMatrix{};
+
   const auto nSkinDeformers =
       fbx_mesh_.GetDeformerCount(fbxsdk::FbxDeformer::EDeformerType::eSkin);
   for (std::remove_const_t<decltype(nSkinDeformers)> iSkinDeformer = 0;
@@ -184,6 +191,11 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
       const auto cluster = skinDeformer->GetCluster(iCluster);
 
       const auto jointNode = cluster->GetLink();
+      if (!jointNode) {
+        _log(Logger::Level::verbose, u8"Null link node detected.");
+        continue;
+      }
+
       const auto glTFNodeIndex = _getNodeMap(*jointNode);
       if (!glTFNodeIndex) {
         // TODO: may be we should do some work here??
@@ -193,14 +205,19 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
       }
 
       switch (const auto linkMode = cluster->GetLinkMode()) {
-      case fbxsdk::FbxCluster::eAdditive:
+      case fbxsdk::FbxCluster::eAdditive: {
+        // TODO:
+        // https://sourceforge.net/p/garnet3d/svn/2087/tree//garnet3d/main/src/priv/test/fbx/DrawScene.cxx#l386
+        // const auto associatedModel = cluster->GetAssociateModel();
         _log(Logger::Level::warning,
              fmt::format("Unsupported cluster mode \"additive\" [Mesh: {}; "
                          "ClusterLink: {}]",
                          fbx_mesh_.GetName(), jointNode->GetName()));
-        break;
+      } break;
       case fbxsdk::FbxCluster::eNormalize:
+        break;
       case fbxsdk::FbxCluster::eTotalOne:
+        break;
       default:
         break;
       }
@@ -214,8 +231,17 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
       if (rJointIndex == skinJoints.end()) {
         fbxsdk::FbxAMatrix transformMatrix;
         cluster->GetTransformMatrix(transformMatrix);
+
+        // TODO: may be we should?
+        // if (!isIdentityMeshGeometricTransform) {
+        //  //
+        //  https://sourceforge.net/p/garnet3d/svn/2087/tree//garnet3d/main/src/priv/test/fbx/DrawScene.cxx#l385
+        //  transformMatrix *= isIdentityMeshGeometricTransform;
+        //}
+
         fbxsdk::FbxAMatrix transformLinkMatrix;
         cluster->GetTransformLinkMatrix(transformLinkMatrix);
+
         // http://blog.csdn.net/bugrunner/article/details/7232291
         // http://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref__view_scene_2_draw_scene_8cxx_example_html
         const auto inverseBindMatrix =
@@ -264,18 +290,23 @@ SceneConverter::_extractSkinData(const fbxsdk::FbxMesh &fbx_mesh_) {
   for (std::remove_const_t<decltype(nControlPoints)> iControlPoint = 0;
        iControlPoint < nControlPoints; ++iControlPoint) {
     const auto nChannels = channelsCount[iControlPoint];
-    if (nChannels > 0) {
+    bool zeroSum = true;
+    if (nChannels != 0) {
       auto sum = static_cast<ResultWeightType>(0.0);
       for (std::remove_const_t<decltype(nChannels)> iChannel = 0;
            iChannel < nChannels; ++iChannel) {
         sum += skinData.channels[iChannel].weights[iControlPoint];
       }
       if (sum != 0.0) {
+        zeroSum = false;
         for (std::remove_const_t<decltype(nChannels)> iChannel = 0;
              iChannel < nChannels; ++iChannel) {
           skinData.channels[iChannel].weights[iControlPoint] /= sum;
         }
       }
+    }
+    if (zeroSum) {
+      skinData.channels[0].weights[iControlPoint] = 1.0;
     }
   }
 
