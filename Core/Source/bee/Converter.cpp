@@ -21,6 +21,7 @@ public:
     }
 
     if (options_.fbmDir) {
+      // TODO: use `FBXImporter::SetEmbeddingExtractionFolder`
       std::string fbmDirCStr{options_.fbmDir->data(),
                              options_.fbmDir->data() + options_.fbmDir->size()};
       auto &xRefManager = _fbxManager->GetXRefManager();
@@ -116,27 +117,64 @@ private:
     }
 
     if (fbxImporter->IsFBX()) {
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_MODEL, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_MATERIAL, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_TEXTURE, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_EMBEDDED, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_SHAPE, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_GOBO, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_ANIMATION, true);
-      fbxImporter->GetIOSettings()->SetBoolProp(EXP_FBX_GLOBAL_SETTINGS, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_MODEL_COUNT, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_DEVICE_COUNT, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_CHARACTER_COUNT,
+      // true); fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_ACTOR_COUNT,
+      // true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_CONSTRAINT_COUNT,
+      // true); fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_MEDIA_COUNT,
+      // true);
+
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_TEMPLATE, true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_PIVOT, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_GLOBAL_SETTINGS,
+      // true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_CHARACTER, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_CONSTRAINT, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(
+      //    IMP_FBX_MERGE_LAYER_AND_TIMEWARP, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_GOBO, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_SHAPE, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_LINK, true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_MATERIAL, true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_TEXTURE, true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_MODEL, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_AUDIO, true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_ANIMATION, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_PASSWORD, true);
+      // fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_PASSWORD_ENABLE,
+      // true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_CURRENT_TAKE_NAME,
+                                                true);
+      fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_EXTRACT_EMBEDDED_DATA,
+                                                true);
     }
 
-    const auto fbxFileHeaderInfo = fbxImporter->GetFileHeaderInfo();
-    if (options_.verbose) {
-      if (options_.logger) {
-        const auto major = fbxFileHeaderInfo->mFileVersion / 1000;
-        auto minor = fbxFileHeaderInfo->mFileVersion % 1000;
-        while (minor != 0 && minor % 10 == 0) {
-          minor /= 10;
-        }
+    if (options_.verbose && options_.logger) {
+      const auto fbxFileHeaderInfo = fbxImporter->GetFileHeaderInfo();
+      const auto major = fbxFileHeaderInfo->mFileVersion / 1000;
+      auto minor = fbxFileHeaderInfo->mFileVersion % 1000;
+      while (minor != 0 && minor % 10 == 0) {
+        minor /= 10;
+      }
+      (*options_.logger)(
+          Logger::Level::verbose,
+          fmt::format(u8"FBX file version: {}.{}", major, minor));
+      const auto creator = forceTreatAsU8(
+          static_cast<const char *>(fbxFileHeaderInfo->mCreator));
+      (*options_.logger)(Logger::Level::verbose,
+                         fmt::format(u8"Creator: {}", creator));
+      if (fbxFileHeaderInfo->mCreationTimeStampPresent) {
         (*options_.logger)(
             Logger::Level::verbose,
-            fmt::format(u8"FBX file version: {}.{}", major, minor));
+            fmt::format(u8"Creation time: {}-{}-{} {}:{}:{}",
+                        fbxFileHeaderInfo->mCreationTimeStamp.mYear,
+                        fbxFileHeaderInfo->mCreationTimeStamp.mMonth,
+                        fbxFileHeaderInfo->mCreationTimeStamp.mDay,
+                        fbxFileHeaderInfo->mCreationTimeStamp.mHour,
+                        fbxFileHeaderInfo->mCreationTimeStamp.mMinute,
+                        fbxFileHeaderInfo->mCreationTimeStamp.mSecond));
       }
     }
 

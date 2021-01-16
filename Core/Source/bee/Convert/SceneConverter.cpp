@@ -248,11 +248,66 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
             iNodeAttribute = 0;
        iNodeAttribute < nNodeAttributes; ++iNodeAttribute) {
     auto nodeAttribute = fbx_node_.GetNodeAttributeByIndex(iNodeAttribute);
-    switch (auto attributeType = nodeAttribute->GetAttributeType()) {
+    switch (const auto attributeType = nodeAttribute->GetAttributeType()) {
     case fbxsdk::FbxNodeAttribute::EType::eMesh:
       fbxMeshes.push_back(static_cast<fbxsdk::FbxMesh *>(nodeAttribute));
       break;
+    case fbxsdk::FbxNodeAttribute::EType::eNull:
+      // http://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_nodes_and_scene_graph_fbx_node_attributes_html
+      // > Some applications require a null node type in their scene graph.
+      // > The FbxNull node attribute is used to define such a node type.
+      // > Observe that an instance of FbxNull is not the same as the NULL
+      // > value.
+      break;
+    case fbxsdk::FbxNodeAttribute::EType::eSkeleton: {
+      const auto fbxSkeleton =
+          static_cast<fbxsdk::FbxSkeleton *>(nodeAttribute);
+
+      auto &skeletonExtra =
+          glTFNode.extensionsAndExtras["extras"]["FBX-glTF-conv"]["skeleton"];
+
+      if (!fbxSkeleton->GetSkeletonTypeIsSet()) {
+        skeletonExtra = {};
+      } else {
+        const auto skeletonType = fbxSkeleton->GetSkeletonType();
+        std::u8string_view skeletonTypeJson;
+        switch (skeletonType) {
+        case fbxsdk::FbxSkeleton::EType::eRoot:
+          skeletonTypeJson = u8"Root";
+          break;
+        case fbxsdk::FbxSkeleton::EType::eLimb:
+          skeletonTypeJson = u8"Limb";
+          break;
+        case fbxsdk::FbxSkeleton::EType::eLimbNode:
+          skeletonTypeJson = u8"LimbNode";
+          break;
+        case fbxsdk::FbxSkeleton::EType::eEffector:
+          skeletonTypeJson = u8"Effector";
+          break;
+        default:
+          skeletonTypeJson = u8"";
+          break;
+        }
+        if (!skeletonTypeJson.empty()) {
+          skeletonExtra["skeletonType"] = forceTreatAsPlain(skeletonTypeJson);
+        }
+      }
+
+      if (fbxSkeleton->GetLimbNodeColorIsSet()) {
+        const auto limbColor = fbxSkeleton->GetLimbNodeColor();
+        skeletonExtra["limbNodeColor"] = {{"r", limbColor.mRed},
+                                          {"g", limbColor.mGreen},
+                                          {"a", limbColor.mBlue},
+                                          {"a", limbColor.mAlpha}};
+      }
+    } break;
     default:
+      // TODO:
+      // if (_options.verbose) {
+      //  _log(Logger::Level::verbose,
+      //       fmt::format(u8"Unhandled node attribute type: {}",
+      //       attributeType));
+      //}
       break;
     }
   }
