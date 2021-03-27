@@ -373,7 +373,8 @@ private:
   void _convertAnimation(fbxsdk::FbxScene &fbx_scene_);
 
   fbxsdk::FbxTimeSpan
-  _getAnimStackTimeSpan(const fbxsdk::FbxAnimStack &fbx_anim_stack_);
+  _getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
+                        fbxsdk::FbxScene &fbx_scene_);
 
   void _convertAnimationLayer(fx::gltf::Animation &glTF_animation_,
                               fbxsdk::FbxAnimLayer &fbx_anim_layer_,

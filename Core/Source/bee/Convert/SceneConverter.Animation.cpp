@@ -1,4 +1,5 @@
 
+#include <bee/Convert/ConvertError.h>
 #include <bee/Convert/DirectSpreader.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
@@ -44,6 +45,37 @@ fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
 }
 
 namespace bee {
+/// <summary>
+/// Animation on node {} has too long animation. Usually because negative timeline
+/// </summary>
+class InvalidNodeAnimationRange : public NodeError<InvalidNodeAnimationRange> {
+public:
+  constexpr static inline std::u8string_view code =
+      u8"invalid_node_animation_range";
+
+  const double limit;
+
+  const double received;
+
+  const std::string take_name;
+
+  InvalidNodeAnimationRange(const std::string_view &node_,
+                            const double limit_,
+                            const double received_,
+                            const std::string_view take_name_)
+      : NodeError(node_), limit(limit_), received(received_),
+        take_name(take_name_) {
+  }
+};
+
+void to_json(nlohmann::json &j_, const InvalidNodeAnimationRange &error_) {
+  to_json(j_,
+          static_cast<const NodeError<InvalidNodeAnimationRange> &>(error_));
+  j_["take"] = error_.take_name;
+  j_["limit"] = error_.limit;
+  j_["received"] = error_.received;
+}
+
 void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
   const auto nAnimStacks = fbx_scene_.GetSrcObjectCount<fbxsdk::FbxAnimStack>();
   for (std::remove_const_t<decltype(nAnimStacks)> iAnimStack = 0;
@@ -59,7 +91,7 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
       continue;
     }
 
-    const auto timeSpan = _getAnimStackTimeSpan(*animStack);
+    const auto timeSpan = _getAnimStackTimeSpan(*animStack, fbx_scene_);
     if (timeSpan.GetDuration() == 0) {
       if (_options.verbose) {
         _log(Logger::Level::verbose, u8"The animation layer's duration is 0.");
@@ -93,34 +125,64 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
   }
 }
 
-fbxsdk::FbxTimeSpan SceneConverter::_getAnimStackTimeSpan(
-    const fbxsdk::FbxAnimStack &fbx_anim_stack_) {
+namespace {
+constexpr double maxAllowedAnimDurationSeconds = 60.0 * 10.0;
+}
+
+fbxsdk::FbxTimeSpan
+SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
+                                      fbxsdk::FbxScene &fbx_scene_) {
   const auto nAnimLayers =
       fbx_anim_stack_.GetMemberCount<fbxsdk::FbxAnimLayer>();
   if (!nAnimLayers) {
     return {};
   }
+
+  const auto localTimeSpan = fbx_anim_stack_.GetLocalTimeSpan();
+  _log(Logger::Level::verbose,
+       "Local time: [" +
+           std::to_string(localTimeSpan.GetStart().GetSecondDouble()) + ", " +
+           std::to_string(localTimeSpan.GetStop().GetSecondDouble()) + "]");
+  const auto referenceTimeSpan = fbx_anim_stack_.GetReferenceTimeSpan();
+  _log(Logger::Level::verbose,
+       "Reference time: [" +
+           std::to_string(referenceTimeSpan.GetStart().GetSecondDouble()) +
+           ", " +
+           std::to_string(referenceTimeSpan.GetStop().GetSecondDouble()) + "]");
+
   fbxsdk::FbxTimeSpan animTimeSpan;
   for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
        iAnimLayer < nAnimLayers; ++iAnimLayer) {
     const auto animLayer =
         fbx_anim_stack_.GetMember<fbxsdk::FbxAnimLayer>(iAnimLayer);
-    const auto nCurveNodes =
-        animLayer->GetMemberCount<fbxsdk::FbxAnimCurveNode>();
-    for (std::remove_const_t<decltype(nCurveNodes)> iCurveNode = 0;
-         iCurveNode < nCurveNodes; ++iCurveNode) {
-      const auto curveNode =
-          animLayer->GetMember<fbxsdk::FbxAnimCurveNode>(iCurveNode);
-      if (!curveNode->IsAnimated()) {
-        continue;
-      }
-      fbxsdk::FbxTimeSpan curveNodeInterval;
-      if (!curveNode->GetAnimationInterval(curveNodeInterval)) {
-        continue;
-      }
-      animTimeSpan.UnionAssignment(curveNodeInterval);
-    }
+
+    const std::function<void(fbxsdk::FbxNode &)> getInterval =
+        [&](fbxsdk::FbxNode &fbx_node_) {
+          fbxsdk::FbxTimeSpan interval;
+          if (fbx_node_.GetAnimationInterval(interval, &fbx_anim_stack_,
+                                             iAnimLayer)) {
+            if (const auto duration = interval.GetDuration().GetSecondDouble();
+                duration > maxAllowedAnimDurationSeconds) {
+              _log(Logger::Level::warning,
+                   InvalidNodeAnimationRange{
+                       fbx_node_.GetName(), maxAllowedAnimDurationSeconds,
+                       duration, fbx_anim_stack_.GetName()});
+            } else {
+              animTimeSpan.UnionAssignment(interval);
+            }
+          }
+
+          const auto nChilds = fbx_node_.GetChildCount();
+          for (std::remove_const_t<decltype(nChilds)> iChild = 0;
+               iChild < nChilds; ++iChild) {
+            auto childNode = fbx_node_.GetChild(iChild);
+            getInterval(*childNode);
+          }
+        };
+
+    getInterval(*fbx_scene_.GetRootNode());
   }
+
   return animTimeSpan;
 }
 
