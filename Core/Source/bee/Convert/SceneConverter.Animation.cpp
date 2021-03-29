@@ -347,10 +347,7 @@ SceneConverter::MorphAnimation SceneConverter::_extractWeightsAnimation(
             target_shapes_.begin(), target_shapes_.end(),
             [animWeight](
                 const std::decay_t<decltype(target_shapes_)>::value_type
-                    &target_) {
-              const auto &[targetShape, targetWeightThreshold] = target_;
-              return targetWeightThreshold >= animWeight;
-            });
+                    &target_) { return std::get<1>(target_) >= animWeight; });
 
         if (firstNotLessThan == target_shapes_.begin()) {
           const auto firstThreshold = std::get<1>(target_shapes_.front());
