@@ -3,6 +3,60 @@
 
 This is a FBX to glTF file format converter.
 
+# How to use
+
+You can find the latest release in [releases page](https://github.com/cocos-creator/FBX-glTF-conv/releases).
+
+To convert, run the executable at command line:
+
+```ps1
+> FBX-glTF-conv <source-FBX-file> <glTF-files-out-dir>
+```
+
+There are some options, run the executable without any arguments:
+
+```ps1
+> FBX-glTF-conv
+
+SYNOPSIS
+        FBX-glTF-conv.exe <input file> [--out
+            <out-file>] [--fbm-dir <fbm-dir>] [--no-flip-v] [--unit-conversion <unit-conversion>]
+            [--no-texture-resolution] [--texture-search-locations <texture-search-locations>...]
+            [--animation-bake-rate] [--suspected-animation-duration-limit] [--log-file <log-file>]
+            [--verbose]
+
+OPTIONS
+        --out       The output path to the .gltf or .glb file. Defaults to
+                    `<working-directory>/<FBX-filename-basename>.gltf`
+
+        --fbm-dir   The directory to store the embedded media.
+        --no-flip-v Do not flip V texture coordinates.
+        <unit-conversion>
+                    How to perform unit converseion.
+                    - `geometry-level`(default) Do unit conversion at geometry level.
+                    - `hierarchy-level` Do unit conversion at hierarchy level.
+                    - `disabled` Disable unit conversion. This may cause the generated glTF does't
+                    conform to glTF specification.
+
+        --no-texture-resolution
+                    Do not resolve textures.
+
+        --texture-search-locations
+                    Texture search locations. These path shall be absolute path or relative path
+                    from input file's directory.
+
+        --animation-bake-rate
+                    Animation bake rate(in FPS).
+
+        --suspected-animation-duration-limit
+                    The suspected animation duration limit.
+
+        --log-file  Specify the log file(logs are outputed as JSON). If not specified, logs're
+                    printed to console
+
+        --verbose   Verbose output.
+```
+
 ## Why
 
 This tool is essentially used as a part of the Cocos Creator.
@@ -17,37 +71,37 @@ But Cocos team has to find another approach because:
 
 ## Features
 
-- 🗸 Geometries
+* 🗸 Geometries
 
-  - 🗸 Meshes
+  * 🗸 Meshes
 
-- 🗸 Materials
+* 🗸 Materials
 
-  - 🗸 Lambert and Phong
+  * 🗸 Lambert and Phong
 
-- 🗸 Textures and images
+* 🗸 Textures and images
 
-  - 🗸 Image formats: JPEG, PNG
+  * 🗸 Image formats: JPEG, PNG
 
-- 🗸 Skinning
+* 🗸 Skinning
 
-  - ⌛ Cluster mode: additive
+  * ⌛ Cluster mode: additive
 
-- 🗸 Blend shapes(Morph targets)
+* 🗸 Blend shapes(Morph targets)
 
-- 🗸 Animations
+* 🗸 Animations
 
-  - 🗸 Node transform animations(Skeletal animations)
+  * 🗸 Node transform animations(Skeletal animations)
 
-  - 🗸 Blend shape animations(Morph animations)
+  * 🗸 Blend shape animations(Morph animations)
 
-- 🗸 Scene hierarchy
+* 🗸 Scene hierarchy
 
-  - ⌛ FBX specific node inherit types: `RrSs`, `Rrs`
+  * ⌛ FBX specific node inherit types: `RrSs`, `Rrs`
 
-- ⌛ Cameras
+* ⌛ Cameras
 
-- ⌛ Lights
+* ⌛ Lights
 
 🗸 Supported ⌛ Not finished
 
@@ -55,5 +109,5 @@ But Cocos team has to find another approach because:
 
 Again, the FBX is complex and specification-less. In development, we often reference from or are inspired from the following predecessors:
 
-- [FBX2glTF](https://github.com/facebookincubator/FBX2glTF)
-- [claygl](https://github.com/pissang/claygl)
+* [FBX2glTF](https://github.com/facebookincubator/FBX2glTF)
+* [claygl](https://github.com/pissang/claygl)
