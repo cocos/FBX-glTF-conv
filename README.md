@@ -10,7 +10,7 @@ You can find the latest release in [releases page](https://github.com/cocos-crea
 To convert, run the executable at command line:
 
 ```ps1
-> FBX-glTF-conv <source-FBX-file> <glTF-files-out-dir>
+> FBX-glTF-conv <source-FBX-file> --out <glTF-files-out-dir>
 ```
 
 There are some options, run the executable without any arguments:
@@ -56,6 +56,26 @@ OPTIONS
 
         --verbose   Verbose output.
 ```
+
+## Build
+
+To build this tool, the followings are required:
+
+- Windows or MacOS;
+
+- [FBX SDK 2019 or higher](https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk-2020-0);
+
+- [vcpkg](https://github.com/microsoft/vcpkg)
+
+- CMake
+
+This is a CMake project, just build it in normal CMake build process. However you need to indicate the FBXSDK's location and vcpkg toolchain file:
+
+```ps1
+> cmake -DCMAKE_TOOLCHAIN_FILE="<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake" -DFbxSdkHome:STRING="<path-to-FBX-SDK-home>"
+```
+
+If problems encountered, you may file an issue or reference to the [CI build script](./CI/GitHubBuild.ps1).
 
 ## Why
 
