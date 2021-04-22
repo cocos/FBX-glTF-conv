@@ -50,6 +50,7 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
     : _glTFBuilder(glTF_builder_), _fbxManager(fbx_manager_),
       _fbxScene(fbx_scene_), _options(options_), _fbxFileName(fbx_file_name_),
       _fbxGeometryConverter(&fbx_manager_) {
+  _animationTimeMode = fbxsdk::FbxTime::ConvertFrameRateToTimeMode(static_cast<double>(options_.animationBakeRate));
 }
 
 void SceneConverter::convert() {

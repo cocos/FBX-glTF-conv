@@ -22,8 +22,7 @@ SYNOPSIS
         FBX-glTF-conv.exe <input file> [--out
             <out-file>] [--fbm-dir <fbm-dir>] [--no-flip-v] [--unit-conversion <unit-conversion>]
             [--no-texture-resolution] [--texture-search-locations <texture-search-locations>...]
-            [--animation-bake-rate] [--suspected-animation-duration-limit] [--log-file <log-file>]
-            [--verbose]
+            [--animation-bake-rate <animation-bake-rate>] [--log-file <log-file>] [--verbose]
 
 OPTIONS
         --out       The output path to the .gltf or .glb file. Defaults to
@@ -45,11 +44,8 @@ OPTIONS
                     Texture search locations. These path shall be absolute path or relative path
                     from input file's directory.
 
-        --animation-bake-rate
+        <animation-bake-rate>
                     Animation bake rate(in FPS).
-
-        --suspected-animation-duration-limit
-                    The suspected animation duration limit.
 
         --log-file  Specify the log file(logs are outputed as JSON). If not specified, logs're
                     printed to console
