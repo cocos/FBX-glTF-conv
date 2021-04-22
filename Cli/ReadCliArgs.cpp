@@ -127,13 +127,10 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
                    "path or relative path from input file's directory.") &
           clipp::values("texture-search-locations", textureSearchLocations),
 
-      clipp::option("--animation-bake-rate")
-          .set(cliArgs.convertOptions.animationBakeRate)
-          .doc("Animation bake rate(in FPS)."),
-
-      clipp::option("--suspected-animation-duration-limit")
-          .set(cliArgs.convertOptions.suspectedAnimationDurationLimit)
-          .doc("The suspected animation duration limit."),
+      clipp::option("--animation-bake-rate") &
+          clipp::value("animation-bake-rate",
+                       cliArgs.convertOptions.animationBakeRate)
+              .doc("Animation bake rate(in FPS)."),
 
       clipp::option("--log-file")
               .doc("Specify the log file(logs are outputed as JSON). If not "

@@ -68,9 +68,6 @@ struct ConvertOptions {
 
   std::uint32_t animationBakeRate = 30;
 
-  std::uint32_t suspectedAnimationDurationLimit =
-      60 * 10; // I think 10 minutes is extraordinary enough...
-
   struct TextureResolution {
     bool disabled = false;
     std::vector<std::u8string> locations;
