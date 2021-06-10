@@ -9,22 +9,27 @@ std::optional<GLTFBuilder::XXIndex>
 SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
   const auto fbxFileTexture =
       fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
-  if (!fbxFileTexture) {
+  if (fbxFileTexture) {
+    return _convertFileTextureShared(*fbxFileTexture);
+  } else {
     const auto fbxTexture = fbx_property_.GetSrcObject<fbxsdk::FbxTexture>();
     if (fbxTexture) {
       _log(Logger::Level::verbose,
            u8"The property is texture but is not file texture. It's ignored.");
     }
     return {};
+  }
+}
+
+std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTextureShared(
+    fbxsdk::FbxFileTexture &fbx_file_texture_) {
+  auto fbxTextureId = fbx_file_texture_.GetUniqueID();
+  if (auto r = _textureMap.find(fbxTextureId); r != _textureMap.end()) {
+    return r->second;
   } else {
-    auto fbxTextureId = fbxFileTexture->GetUniqueID();
-    if (auto r = _textureMap.find(fbxTextureId); r != _textureMap.end()) {
-      return r->second;
-    } else {
-      auto glTFTextureIndex = _convertFileTexture(*fbxFileTexture);
-      _textureMap.emplace(fbxTextureId, glTFTextureIndex);
-      return glTFTextureIndex;
-    }
+    auto glTFTextureIndex = _convertFileTexture(fbx_file_texture_);
+    _textureMap.emplace(fbxTextureId, glTFTextureIndex);
+    return glTFTextureIndex;
   }
 }
 

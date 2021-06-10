@@ -436,8 +436,7 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
       glTFBufferView.name =
           fmt::format("{}/Target-{}", primitive_name_, *bulk.morphTargetHint);
     } else {
-      glTFBufferView.name =
-          fmt::format("{}", primitive_name_, *bulk.morphTargetHint);
+      glTFBufferView.name = fmt::format("{}", primitive_name_);
     }
     if (bulk.vertexBuffer) {
       glTFBufferView.target = fx::gltf::BufferView::TargetType::ArrayBuffer;
