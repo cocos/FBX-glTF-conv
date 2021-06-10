@@ -111,6 +111,9 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
     fx::gltf::Animation glTFAnimation;
     const auto animName = _convertName(animStack->GetName());
     glTFAnimation.name = animName;
+
+    _log(Logger::Level::verbose, fmt::format("Take {}: {}s", animName, timeSpan.GetDuration().GetSecondDouble()));
+
     fbx_scene_.SetCurrentAnimationStack(animStack);
     for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
          iAnimLayer < nAnimLayers; ++iAnimLayer) {

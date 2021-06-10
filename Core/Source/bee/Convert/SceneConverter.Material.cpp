@@ -2,8 +2,257 @@
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <fmt/format.h>
+#include <glm/gtx/compatibility.hpp>
+#include <glm/vec3.hpp>
 
 namespace bee {
+
+namespace {
+template <typename T>
+using ValueAndTexture = std::tuple<T, fbxsdk::FbxFileTexture *>;
+
+using FbxDoubleValueAndTexture = ValueAndTexture<fbxsdk::FbxDouble>;
+
+using FbxDouble4ValueAndTexture = ValueAndTexture<fbxsdk::FbxDouble4>;
+
+template <typename T>
+void extract_property(const fbxsdk::FbxProperty parent_property_,
+                      std::string_view property_name_,
+                      T &value_) {
+  const auto prop = parent_property_.FindHierarchical(property_name_.data());
+  if (prop.IsValid()) {
+    value_ = prop.Get<T>();
+  }
+}
+
+void extract_texture(const fbxsdk::FbxProperty parent_property_,
+                     std::string_view property_name_,
+                     fbxsdk::FbxFileTexture *&value_) {
+  const auto textureProperty =
+      parent_property_.Find(property_name_.data(), false);
+  if (!textureProperty.IsValid()) {
+    return;
+  }
+  const auto isEnabled = parent_property_.Find(
+      (std::string{property_name_} + "_on").c_str(), false);
+  if (isEnabled.IsValid() && !isEnabled.Get<fbxsdk::FbxBool>()) {
+    return;
+  }
+  const auto fbxTexture =
+      textureProperty.GetSrcObject<fbxsdk::FbxFileTexture>();
+  value_ = fbxTexture;
+}
+
+template <typename T>
+void extract_property(const fbxsdk::FbxProperty parent_property_,
+                      std::string_view property_name_,
+                      std::string_view texture_property_name_,
+                      ValueAndTexture<T> &value_tex_) {
+  auto &[value, map] = value_tex_;
+  extract_property(parent_property_, property_name_, value);
+  extract_texture(parent_property_, texture_property_name_, map);
+}
+
+constexpr fbxsdk::FbxDouble fbx_double_0 = 0.0;
+constexpr fbxsdk::FbxDouble fbx_double_1 = 1.0;
+
+template <typename T> struct SpecularGlossiness {
+  glm::tvec3<T> diffuse;
+  T opacity;
+  glm::tvec3<T> specular;
+  T shininess_exponent;
+
+  T specular_intensity() const {
+    return specular.x * 0.2125 + specular.y * 0.7154 + specular.z * 0.0721;
+  }
+
+  T diffuse_brighness() const {
+    return diffuse.x * 0.299 + diffuse.y * 0.587 + diffuse.z * 0.114;
+  }
+
+  T specular_brighness() const {
+    return specular.x * 0.299 + specular.y * 0.587 + specular.z * 0.114;
+  }
+
+  T specular_strength() const {
+    return std::max({specular.x, specular.y, specular.z});
+  }
+};
+
+template <typename T> struct MetallicRoughness {
+  glm::tvec3<T> baseColor;
+  T opacity;
+  T metallic;
+  T roughness;
+};
+
+template <typename T> constexpr static T dielectric_specular = 0.04;
+
+template <typename T> constexpr static T epsilon = 1e-4;
+
+template <typename T>
+T solve_metallic(T diffuse_, T specular_, T one_minus_specular_strength_) {
+  if (specular_ < dielectric_specular<T>) {
+    return 0.0;
+  }
+
+  const auto a = dielectric_specular<T>;
+  const auto b =
+      diffuse_ * one_minus_specular_strength_ / (1.0 - a) + specular_ - 2.0 * a;
+  const auto c = a - specular_;
+  const auto D = b * b - 4.0 * a * c;
+  const auto squareRoot = std::sqrt(std::max(0.0, D));
+  return std::clamp((-b + squareRoot) / (2.0 * a), 0.0, 1.0);
+}
+
+template <typename T>
+MetallicRoughness<T>
+sg_to_mr(const SpecularGlossiness<T> &specular_glossiniess_) {
+  // https://docs.microsoft.com/en-us/azure/remote-rendering/reference/material-mapping
+
+  const auto diffuse = specular_glossiniess_.diffuse;
+  const auto opacity = specular_glossiniess_.opacity;
+  const auto specular = specular_glossiniess_.specular;
+
+  const auto oneMinusSpecularStrength =
+      1.0 - specular_glossiniess_.specular_strength();
+
+  const auto roughness =
+      std::sqrt(2.0 / (specular_glossiniess_.shininess_exponent *
+                           specular_glossiniess_.specular_intensity() +
+                       2.0));
+
+  const auto metallic = solve_metallic(
+      specular_glossiniess_.diffuse_brighness(),
+      specular_glossiniess_.specular_brighness(), oneMinusSpecularStrength);
+
+  const auto baseColorFromDiffuse =
+      diffuse * (oneMinusSpecularStrength / (1.0 - dielectric_specular<T>) /
+                 std::max(1.0 - metallic, epsilon<T>));
+  const auto baseColroFromSpecular =
+      (specular - dielectric_specular<T> * (1.0 - metallic)) *
+      (1.0 / std::max(metallic, epsilon<T>));
+  const auto baseColor =
+      glm::clamp(glm::lerp(baseColorFromDiffuse, baseColroFromSpecular,
+                           metallic * metallic),
+                 glm::zero<glm::tvec3<T>>(), glm::one<glm::tvec3<T>>());
+
+  MetallicRoughness<T> metallicRoughness;
+  metallicRoughness.baseColor = baseColor;
+  metallicRoughness.opacity = opacity;
+  metallicRoughness.metallic = metallic;
+  metallicRoughness.roughness = roughness;
+  return metallicRoughness;
+}
+
+struct FbxSurfaceMaterialStandardProperties {
+public:
+  fbxsdk::FbxString shading_mode = "unknown";
+  fbxsdk::FbxDouble4 ambient_color = {
+      static_cast<fbxsdk::FbxDouble>(0.4), static_cast<fbxsdk::FbxDouble>(0.4),
+      static_cast<fbxsdk::FbxDouble>(0.4), fbx_double_1};
+  fbxsdk::FbxDouble ambient_factor = 1.0;
+  fbxsdk::FbxDouble4 diffuse_color = {
+      static_cast<fbxsdk::FbxDouble>(0.4), static_cast<fbxsdk::FbxDouble>(0.4),
+      static_cast<fbxsdk::FbxDouble>(0.4), fbx_double_1};
+  fbxsdk::FbxDouble diffuse_factor = fbx_double_1;
+  fbxsdk::FbxDouble3 specular_color = {static_cast<fbxsdk::FbxDouble>(0.5),
+                                       static_cast<fbxsdk::FbxDouble>(0.5),
+                                       static_cast<fbxsdk::FbxDouble>(0.5)};
+  fbxsdk::FbxDouble specular_factor = fbx_double_1;
+  fbxsdk::FbxDouble shininess_exponent =
+      static_cast<fbxsdk::FbxDouble>(6.31179141998291);
+  fbxsdk::FbxDouble4 transparency_color = {fbx_double_1, fbx_double_1,
+                                           fbx_double_1, fbx_double_1};
+  fbxsdk::FbxDouble transparency_factor = fbx_double_0;
+  fbxsdk::FbxDouble4 emissive_color = {fbx_double_0, fbx_double_0, fbx_double_0,
+                                       fbx_double_1};
+  fbxsdk::FbxDouble emissive_factor = fbx_double_0;
+  fbxsdk::FbxFileTexture *bump = nullptr;
+  fbxsdk::FbxFileTexture *normal_map = nullptr;
+  fbxsdk::FbxDouble bump_factor = fbx_double_1;
+
+  static FbxSurfaceMaterialStandardProperties
+  read_from(const fbxsdk::FbxSurfaceMaterial &fbx_material_) {
+    FbxSurfaceMaterialStandardProperties properties;
+
+    const auto &rootProperty = fbx_material_.RootProperty;
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sShadingModel,
+                     properties.shading_mode);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sAmbient,
+                     properties.ambient_color);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sAmbientFactor,
+                     properties.ambient_factor);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sDiffuse,
+                     properties.diffuse_color);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sDiffuseFactor,
+                     properties.diffuse_factor);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sSpecular,
+                     properties.specular_color);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sSpecularFactor,
+                     properties.specular_factor);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sShininess,
+                     properties.shininess_exponent);
+    extract_property(rootProperty,
+                     fbxsdk::FbxSurfaceMaterial::sTransparentColor,
+                     properties.transparency_color);
+    extract_property(rootProperty,
+                     fbxsdk::FbxSurfaceMaterial::sTransparencyFactor,
+                     properties.transparency_factor);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sEmissive,
+                     properties.emissive_color);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sEmissiveFactor,
+                     properties.emissive_factor);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sBump,
+                     properties.bump);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sNormalMap,
+                     properties.normal_map);
+    extract_property(rootProperty, fbxsdk::FbxSurfaceMaterial::sBumpFactor,
+                     properties.bump_factor);
+    // TODO:
+    // static const char* sReflection;
+    // static const char* sReflectionFactor;
+    // static const char* sDisplacementColor;
+    // static const char* sDisplacementFactor;
+    // static const char* sVectorDisplacementColor;
+    // static const char* sVectorDisplacementFactor;
+
+    return properties;
+  }
+
+  SpecularGlossiness<fbxsdk::FbxDouble> get_specular_glossiness() const {
+    glm::tvec3<fbxsdk::FbxDouble> fbxTransparenyScaled = {
+        transparency_color[0] * transparency_factor,
+        transparency_color[1] * transparency_factor,
+        transparency_color[2] * transparency_factor};
+    glm::tvec3<fbxsdk::FbxDouble> diffuseColor;
+    for (int i = 0; i < 3; ++i) {
+      diffuseColor[i] =
+          static_cast<float>(diffuse_color[i] * diffuse_factor *
+                             (fbx_double_1 - fbxTransparenyScaled[i]));
+    }
+    // FBX color is RGB, so we calculate the A channel as the average of the FBX
+    // transparency color
+    const auto opacity =
+        fbx_double_1 - (fbxTransparenyScaled.x + fbxTransparenyScaled.y +
+                        fbxTransparenyScaled.z) /
+                           static_cast<fbxsdk::FbxDouble>(3.0);
+
+    SpecularGlossiness<fbxsdk::FbxDouble> specularGlossiness;
+    specularGlossiness.diffuse = diffuseColor;
+    specularGlossiness.opacity = opacity;
+    specularGlossiness.shininess_exponent = shininess_exponent;
+    specularGlossiness.specular = {
+        specular_color[0] * specular_factor,
+        specular_color[1] * specular_factor,
+        specular_color[2] * specular_factor,
+    };
+    return specularGlossiness;
+  }
+};
+
+} // namespace
+
 template <typename FinalError_>
 class MaterialError : public ErrorBase<FinalError_> {
 public:
@@ -68,7 +317,7 @@ SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
             static_cast<fbxsdk::FbxSurfaceLambert &>(fbx_material_),
             material_usage_);
       } else {
-        return {};
+        return _convertUnknownMaterial(fbx_material_, material_usage_);
       }
     }();
     r = _materialConvertCache.emplace(convertKey, glTFMaterialIndex).first;
@@ -196,5 +445,163 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
   auto glTFMaterailIndex =
       _glTFBuilder.add(&fx::gltf::Document::materials, std::move(glTFMaterial));
   return glTFMaterailIndex;
+}
+
+std::optional<GLTFBuilder::XXIndex>
+SceneConverter::_convertStanardMaterialProperties(
+    fbxsdk::FbxSurfaceMaterial &fbx_material_,
+    const MaterialUsage &material_usage_) {
+  const auto standardProperties =
+      FbxSurfaceMaterialStandardProperties::read_from(fbx_material_);
+
+  const auto materialName = std::string{fbx_material_.GetName()};
+
+  fx::gltf::Material glTFMaterial;
+  glTFMaterial.name = materialName;
+  auto &glTFPbrMetallicRoughness = glTFMaterial.pbrMetallicRoughness;
+
+  glTFMaterial.emissiveFactor = {
+      static_cast<float>(standardProperties.emissive_color[0] *
+                         standardProperties.emissive_factor),
+      static_cast<float>(standardProperties.emissive_color[1] *
+                         standardProperties.emissive_factor),
+      static_cast<float>(standardProperties.emissive_color[2] *
+                         standardProperties.emissive_factor)};
+
+  const auto specularGlossiness = standardProperties.get_specular_glossiness();
+
+  const auto metallicRoughness = sg_to_mr(specularGlossiness);
+
+  glTFPbrMetallicRoughness.baseColorFactor = {
+      static_cast<float>(metallicRoughness.baseColor.x),
+      static_cast<float>(metallicRoughness.baseColor.y),
+      static_cast<float>(metallicRoughness.baseColor.z),
+      static_cast<float>(metallicRoughness.opacity),
+  };
+  glTFPbrMetallicRoughness.metallicFactor =
+      static_cast<float>(metallicRoughness.metallic);
+  glTFPbrMetallicRoughness.roughnessFactor =
+      static_cast<float>(metallicRoughness.roughness);
+
+  // Normal map
+  if (standardProperties.normal_map) {
+    if (const auto glTFNormalMapIndex =
+            _convertFileTextureShared(*standardProperties.normal_map)) {
+      glTFMaterial.normalTexture.index = *glTFNormalMapIndex;
+    }
+  }
+
+  // Bump map
+  if (standardProperties.bump) {
+    if (const auto glTFBumpMapIndex =
+            _convertFileTextureShared(*standardProperties.bump)) {
+      glTFMaterial.normalTexture.index = *glTFBumpMapIndex;
+    }
+  }
+
+  auto glTFMaterailIndex =
+      _glTFBuilder.add(&fx::gltf::Document::materials, std::move(glTFMaterial));
+  return glTFMaterailIndex;
+} // namespace bee
+
+std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertUnknownMaterial(
+    fbxsdk::FbxSurfaceMaterial &fbx_material_,
+    const MaterialUsage &material_usage_) {
+  const auto standard =
+      _convertStanardMaterialProperties(fbx_material_, material_usage_);
+  if (!standard) {
+    return {};
+  }
+
+  std::function<std::optional<Json>(const fbxsdk::FbxProperty &)> dumpProperty;
+
+  const auto dumpCompoundProperty =
+      [&](const fbxsdk::FbxProperty &fbx_property_) -> std::optional<Json> {
+    Json json;
+    auto child = fbx_property_.GetChild();
+    for (; child.IsValid(); child = child.GetSibling()) {
+      const auto childJson = dumpProperty(child);
+      if (childJson) {
+        json[static_cast<const char *>(child.GetName())] = *childJson;
+      }
+    }
+    return json;
+  };
+
+  dumpProperty =
+      [&](const fbxsdk::FbxProperty &fbx_property_) -> std::optional<Json> {
+    const auto propertyDataType = fbx_property_.GetPropertyDataType();
+    if (propertyDataType == fbxsdk::FbxDoubleDT) {
+      return fbx_property_.Get<fbxsdk::FbxDouble>();
+    } else if (propertyDataType == fbxsdk::FbxDouble2DT) {
+      const auto value = fbx_property_.Get<fbxsdk::FbxDouble2>();
+      return Json::array({value[0], value[1]});
+    } else if (propertyDataType == fbxsdk::FbxDouble3DT ||
+               propertyDataType == fbxsdk::FbxColor3DT) {
+      const auto value = fbx_property_.Get<fbxsdk::FbxDouble3>();
+      return Json::array({value[0], value[1], value[2]});
+    } else if (propertyDataType == fbxsdk::FbxDouble4DT ||
+               propertyDataType == fbxsdk::FbxColor4DT) {
+      const auto value = fbx_property_.Get<fbxsdk::FbxDouble4>();
+      return Json::array({value[0], value[1], value[2], value[3]});
+    } else if (propertyDataType == fbxsdk::FbxFloatDT) {
+      return fbx_property_.Get<fbxsdk::FbxFloat>();
+    } else if (propertyDataType == fbxsdk::FbxBoolDT) {
+      return fbx_property_.Get<fbxsdk::FbxBool>();
+    } else if (propertyDataType == fbxsdk::FbxIntDT) {
+      return fbx_property_.Get<fbxsdk::FbxInt>();
+    } else if (propertyDataType == fbxsdk::FbxUIntDT) {
+      return fbx_property_.Get<fbxsdk::FbxUInt>();
+    } else if (propertyDataType == fbxsdk::FbxBoolDT) {
+      return fbx_property_.Get<fbxsdk::FbxBool>();
+    } else if (propertyDataType == fbxsdk::FbxStringDT) {
+      const auto value = fbx_property_.Get<fbxsdk::FbxString>();
+      // TODO: process NON-UTF8 strings
+      return static_cast<const char *>(value);
+    } else if (propertyDataType == fbxsdk::FbxReferenceDT) {
+      const auto srcObjectCount = fbx_property_.GetSrcObjectCount();
+      if (srcObjectCount == 0) {
+        return {}; // nullptr?
+      } else if (srcObjectCount == 1) {
+        const auto fbxFileTexture =
+            fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
+        if (fbxFileTexture) {
+          const auto glTFTextureIndex =
+              _convertFileTextureShared(*fbxFileTexture);
+          if (glTFTextureIndex) {
+            return *glTFTextureIndex;
+          } else {
+            return {}; // Bad texture.
+          }
+        }
+      }
+      _log(Logger::Level::verbose,
+           fmt::format(
+               "Material property {} is invalid: can only reference to texture",
+               fbx_property_.GetHierarchicalName()));
+      return {};
+    } else if (propertyDataType == fbxsdk::FbxCompoundDT) {
+      return dumpCompoundProperty(fbx_property_);
+    } else {
+      const auto propertyDataTypeName =
+          fbxsdk::FbxGetDataTypeNameForIO(propertyDataType);
+      _log(Logger::Level::verbose,
+           fmt::format("Unknown property data type: {}", propertyDataTypeName));
+      return {};
+    }
+  };
+
+  auto &glTFMaterial =
+      _glTFBuilder.get(&fx::gltf::Document::materials)[*standard];
+  auto &originalMaterial =
+      glTFMaterial
+          .extensionsAndExtras["extras"]["FBX-glTF-conv"]["originalMaterial"];
+
+  const auto properties = dumpCompoundProperty(fbx_material_.RootProperty);
+  if (properties) {
+    originalMaterial["properties"] = *properties;
+  }
+
+  return standard;
 }
 } // namespace bee

@@ -348,7 +348,18 @@ private:
                           const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
+  _convertUnknownMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                          const MaterialUsage &material_usage_);
+
+  std::optional<GLTFBuilder::XXIndex>
+  _convertStanardMaterialProperties(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                                    const MaterialUsage &material_usage_);
+
+  std::optional<GLTFBuilder::XXIndex>
   _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_);
+
+  std::optional<GLTFBuilder::XXIndex>
+  _convertFileTextureShared(fbxsdk::FbxFileTexture &fbx_file_texture_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertFileTexture(const fbxsdk::FbxFileTexture &fbx_texture_);
