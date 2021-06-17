@@ -45,156 +45,6 @@ fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
 }
 
 namespace bee {
-namespace {
-Json dump_fbx_anim_curve(const fbxsdk::FbxAnimCurve &curve_) {
-  Json json;
-
-  const auto nKeys = curve_.KeyGetCount();
-  std::vector<Json> keyJsons(nKeys);
-  for (std::remove_const_t<decltype(nKeys)> iKey = 0; iKey < nKeys; ++iKey) {
-    const auto fbxInterpMode = curve_.KeyGetInterpolation(iKey);
-    const auto &fbxKey = curve_.KeyGet(iKey);
-    const auto fbxTime = fbxKey.GetTime();
-    const auto fbxValue = fbxKey.GetValue();
-    const auto fbxTangentMode = curve_.KeyGetTangentMode(iKey);
-    const auto fbxNextLeftSlope = fbxKey.GetDataFloat(
-        fbxsdk::FbxAnimCurveDef::EDataIndex::eNextLeftSlope);
-    const auto fbxRightSlope =
-        fbxKey.GetDataFloat(fbxsdk::FbxAnimCurveDef::EDataIndex::eRightSlope);
-    const auto fbxTangentWeightMode = fbxKey.GetTangentWeightMode();
-    const auto fbxLeftTangentWeight = curve_.KeyGetLeftTangentWeight(iKey);
-    const auto fbxRightTangentWeight = curve_.KeyGetRightTangentWeight(iKey);
-    const auto fbxTangentVelocityMode = fbxKey.GetTangentVelocityMode();
-    const auto fbxLeftTangentVelocity = curve_.KeyGetLeftTangentVelocity(iKey);
-    const auto fbxRightTangentVelocity =
-        curve_.KeyGetRightTangentVelocity(iKey);
-    const auto fbxTangentVisibility = fbxKey.GetTangentVisibility();
-    const auto fbxConstantMode = fbxKey.GetConstantMode();
-
-    Json keyJson;
-    keyJson["time"] = fbxTime.Get();
-    keyJson["value"] = fbxValue;
-    keyJson["interpolation"] = [](fbxsdk::FbxAnimCurveDef::EInterpolationType
-                                      mode_) {
-      switch (mode_) {
-      default:
-      case fbxsdk::FbxAnimCurveDef::EInterpolationType::eInterpolationConstant:
-        return "Constant";
-      case fbxsdk::FbxAnimCurveDef::EInterpolationType::eInterpolationLinear:
-        return "Linear";
-      case fbxsdk::FbxAnimCurveDef::EInterpolationType::eInterpolationCubic:
-        return "Cubic";
-      }
-    }(fbxInterpMode);
-    keyJson["tangentMode"] = [](fbxsdk::FbxAnimCurveDef::ETangentMode mode_) {
-      switch (mode_) {
-      default:
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentAuto:
-        return "Auto";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentAutoBreak:
-        return "AutoBreak";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentBreak:
-        return "Break";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentGenericBreak:
-        return "GenericBreak";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentGenericClamp:
-        return "GenericClamp";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::
-          eTangentGenericClampProgressive:
-        return "GenericClampProgressive";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::
-          eTangentGenericTimeIndependent:
-        return "GenericTimeIndependent";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentTCB:
-        return "TCB";
-      case fbxsdk::FbxAnimCurveDef::ETangentMode::eTangentUser:
-        return "User";
-      }
-    }(fbxTangentMode);
-    keyJson["rightSlope"] = fbxRightSlope;
-    keyJson["nextLeftSlope"] = fbxNextLeftSlope;
-    keyJson["tangentWeightMode"] =
-        [](fbxsdk::FbxAnimCurveDef::EWeightedMode mode_) {
-          switch (mode_) {
-          default:
-          case fbxsdk::FbxAnimCurveDef::EWeightedMode::eWeightedNone:
-            return "None";
-          case fbxsdk::FbxAnimCurveDef::EWeightedMode::eWeightedNextLeft:
-            return "NextLeft";
-          case fbxsdk::FbxAnimCurveDef::EWeightedMode::eWeightedRight:
-            return "Right";
-          case fbxsdk::FbxAnimCurveDef::EWeightedMode::eWeightedAll:
-            return "All";
-          }
-        }(fbxTangentWeightMode);
-    keyJson["leftTangentWeight"] = fbxLeftTangentWeight;
-    keyJson["rightTangentWeight"] = fbxRightTangentWeight;
-    keyJson["tangentVelocityMode"] =
-        [](fbxsdk::FbxAnimCurveDef::EVelocityMode mode_) {
-          switch (mode_) {
-          default:
-          case fbxsdk::FbxAnimCurveDef::EVelocityMode::eVelocityNone:
-            return "None";
-          case fbxsdk::FbxAnimCurveDef::EVelocityMode::eVelocityNextLeft:
-            return "NextLeft";
-          case fbxsdk::FbxAnimCurveDef::EVelocityMode::eVelocityRight:
-            return "Right";
-          case fbxsdk::FbxAnimCurveDef::EVelocityMode::eVelocityAll:
-            return "All";
-          }
-        }(fbxTangentVelocityMode);
-    keyJson["leftTangentVelocity"] = fbxLeftTangentVelocity;
-    keyJson["rightTangentVelocity"] = fbxRightTangentVelocity;
-    keyJson["tangentVisibility"] =
-        [](fbxsdk::FbxAnimCurveDef::ETangentVisibility mode_) {
-          switch (mode_) {
-          default:
-          case fbxsdk::FbxAnimCurveDef::ETangentVisibility::eTangentShowNone:
-            return "None";
-          case fbxsdk::FbxAnimCurveDef::ETangentVisibility::eTangentShowLeft:
-            return "Left";
-          case fbxsdk::FbxAnimCurveDef::ETangentVisibility::eTangentShowRight:
-            return "Right";
-          case fbxsdk::FbxAnimCurveDef::ETangentVisibility::eTangentShowBoth:
-            return "Both";
-          }
-        }(fbxTangentVisibility);
-    keyJson["constantMode"] = [](fbxsdk::FbxAnimCurveDef::EConstantMode mode_) {
-      switch (mode_) {
-      default:
-      case fbxsdk::FbxAnimCurveDef::EConstantMode::eConstantStandard:
-        return "Standard";
-      case fbxsdk::FbxAnimCurveDef::EConstantMode::eConstantNext:
-        return "Next";
-      }
-    }(fbxConstantMode);
-
-    json[iKey] = keyJson;
-  }
-
-  return json;
-}
-
-Json dump_vec3_property_curve(
-    fbxsdk::FbxPropertyT<fbxsdk::FbxDouble3> property_,
-    fbxsdk::FbxAnimLayer &fbx_anim_layer_) {
-  Json json = {};
-  if (const auto curve =
-          property_.GetCurve(&fbx_anim_layer_, FBXSDK_CURVENODE_COMPONENT_X)) {
-    json["x"] = dump_fbx_anim_curve(*curve);
-  }
-  if (const auto curve =
-          property_.GetCurve(&fbx_anim_layer_, FBXSDK_CURVENODE_COMPONENT_Y)) {
-    json["y"] = dump_fbx_anim_curve(*curve);
-  }
-  if (const auto curve =
-          property_.GetCurve(&fbx_anim_layer_, FBXSDK_CURVENODE_COMPONENT_Z)) {
-    json["z"] = dump_fbx_anim_curve(*curve);
-  }
-  return json;
-};
-} // namespace
-
 /// <summary>
 /// Animation on node {} has too long animation. Usually because negative timeline
 /// </summary>
@@ -262,9 +112,7 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
     const auto animName = _convertName(animStack->GetName());
     glTFAnimation.name = animName;
 
-    _log(Logger::Level::verbose,
-         fmt::format("Take {}: {}s", animName,
-                     timeSpan.GetDuration().GetSecondDouble()));
+    _log(Logger::Level::verbose, fmt::format("Take {}: {}s", animName, timeSpan.GetDuration().GetSecondDouble()));
 
     fbx_scene_.SetCurrentAnimationStack(animStack);
     for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
@@ -666,9 +514,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     channel.target.node = *glTFNodeIndex;
     channel.target.path = path_;
     channel.sampler = static_cast<std::int32_t>(samplerIndex);
-    const auto iChannel = glTF_animation_.channels.size();
     glTF_animation_.channels.push_back(channel);
-    return iChannel;
   };
 
   using ComponentType =
@@ -678,39 +524,21 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec3,
                                     fx::gltf::Accessor::ComponentType::Float,
                                     FbxVec3Spreader>(translations, 0, 0);
-    const auto iChannel = addChannel("translation", valueAccessorIndex);
-    auto &channel = glTF_animation_.channels[iChannel];
-    const auto extras =
-        dump_vec3_property_curve(fbx_node_.LclTranslation, fbx_anim_layer_);
-    channel
-        .extensionsAndExtras["extras"]["FBX-glTF-conv"]["originalAnimation"] =
-        extras;
+    addChannel("translation", valueAccessorIndex);
   }
   if (isRotationAnimated) {
     auto valueAccessorIndex =
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec4,
                                     fx::gltf::Accessor::ComponentType::Float,
                                     FbxQuatSpreader>(rotations, 0, 0);
-    const auto iChannel = addChannel("rotation", valueAccessorIndex);
-    auto &channel = glTF_animation_.channels[iChannel];
-    const auto extras =
-        dump_vec3_property_curve(fbx_node_.LclRotation, fbx_anim_layer_);
-    channel
-        .extensionsAndExtras["extras"]["FBX-glTF-conv"]["originalAnimation"] =
-        extras;
+    addChannel("rotation", valueAccessorIndex);
   }
   if (isScaleAnimated) {
     auto valueAccessorIndex =
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec3,
                                     fx::gltf::Accessor::ComponentType::Float,
                                     FbxVec3Spreader>(scales, 0, 0);
-    const auto iChannel = addChannel("scale", valueAccessorIndex);
-    auto &channel = glTF_animation_.channels[iChannel];
-    const auto extras =
-        dump_vec3_property_curve(fbx_node_.LclScaling, fbx_anim_layer_);
-    channel
-        .extensionsAndExtras["extras"]["FBX-glTF-conv"]["originalAnimation"] =
-        extras;
+    addChannel("scale", valueAccessorIndex);
   }
 }
 } // namespace bee
