@@ -67,11 +67,13 @@ template <typename T> struct SpecularGlossiness {
   }
 
   T diffuse_brighness() const {
-    return diffuse.x * 0.299 + diffuse.y * 0.587 + diffuse.z * 0.114;
+    return std::pow(diffuse.x, 2) * 0.299 + std::pow(diffuse.y, 2) * 0.587 +
+           std::pow(diffuse.z, 2) * 0.114;
   }
 
   T specular_brighness() const {
-    return specular.x * 0.299 + specular.y * 0.587 + specular.z * 0.114;
+    return std::pow(specular.x, 2) * 0.299 + std::pow(specular.y, 2) * 0.587 +
+           std::pow(specular.z, 2) * 0.114;
   }
 
   T specular_strength() const {
