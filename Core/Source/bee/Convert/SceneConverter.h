@@ -222,7 +222,8 @@ private:
                      std::optional<GLTFBuilder::XXIndex>,
                      MaterialConvertKey::Hash>
       _materialConvertCache;
-  std::unordered_map<fbxsdk::FbxUInt64, std::optional<GLTFBuilder::XXIndex>>
+  std::unordered_map<fbxsdk::FbxUInt64,
+                     std::optional<fx::gltf::Material::Texture>>
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
   std::optional<fbxsdk::FbxDouble> _unitScaleFactor = 1.0;
@@ -355,14 +356,24 @@ private:
   _convertStanardMaterialProperties(fbxsdk::FbxSurfaceMaterial &fbx_material_,
                                     const MaterialUsage &material_usage_);
 
-  std::optional<GLTFBuilder::XXIndex>
+  std::optional<fx::gltf::Material::Texture>
   _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_);
 
-  std::optional<GLTFBuilder::XXIndex>
+  std::optional<fx::gltf::Material::Texture>
   _convertFileTextureShared(fbxsdk::FbxFileTexture &fbx_file_texture_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertFileTexture(const fbxsdk::FbxFileTexture &fbx_texture_);
+
+  std::optional<fx::gltf::Material::NormalTexture>
+  _convertTexturePropertyAsNormalTexture(fbxsdk::FbxProperty &fbx_property_);
+
+  std::optional<fx::gltf::Material::NormalTexture>
+  _convertFileTextureAsNormalTexture(fbxsdk::FbxFileTexture &fbx_file_texture_);
+
+  void
+  _convertTextureUVTransform(const fbxsdk::FbxTexture &fbx_texture_,
+                             fx::gltf::Material::Texture &glTF_texture_info_);
 
   static bool _hasValidImageExtension(const bee::filesystem::path &path_);
 

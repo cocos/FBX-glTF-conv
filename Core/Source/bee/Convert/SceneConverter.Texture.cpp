@@ -3,9 +3,68 @@
 #include <bee/polyfills/filesystem.h>
 #include <cppcodec/base64_default_rfc4648.hpp>
 #include <fmt/format.h>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/trigonometric.hpp>
+#include <regex>
+
+namespace {
+using glm_fbx_vec3 = glm::tvec3<fbxsdk::FbxDouble>;
+
+using glm_fbx_vec4 = glm::tvec4<fbxsdk::FbxDouble>;
+
+using glm_fbx_quat = glm::tquat<fbxsdk::FbxDouble>;
+
+using glm_fbx_mat4 = glm::tmat4x4<fbxsdk::FbxDouble>;
+
+glm_fbx_vec3 fbx_to_glm(const fbxsdk::FbxDouble3 &v_) {
+  return {v_[0], v_[1], v_[2]};
+}
+
+std::regex adsk_3ds_max_uv_set_name_regex{R"(UVChannel_(\d+))",
+                                          std::regex_constants::ECMAScript};
+
+// https://community.esri.com/t5/arcgis-cityengine-questions/city-engine-does-not-quot-read-quot-multiple-uvset-from-collada/td-p/433179
+std::regex maya_uv_set_name_regex{R"(map(\d+))",
+                                  std::regex_constants::ECMAScript};
+
+glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
+                                           glm_fbx_vec3 offset_,
+                                           glm_fbx_quat rotation_,
+                                           glm_fbx_vec3 rotation_pivot_,
+                                           glm_fbx_vec3 scale_,
+                                           glm_fbx_vec3 scale_pivot_) {
+  offset_ *= scale_;
+
+  const auto pivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), pivot_center_);
+  const auto invPivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), -pivot_center_);
+
+  const auto translation =
+      glm::translate(glm::identity<glm_fbx_mat4>(), offset_);
+
+  const auto rotation = glm::mat4_cast(rotation_);
+  const auto rotationPivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), rotation_pivot_);
+  const auto invRotationPivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), -rotation_pivot_);
+
+  const auto scale = glm::scale(glm::identity<glm_fbx_mat4>(), scale_);
+  const auto scalePivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), scale_pivot_);
+  const auto invScalePivotTransform =
+      glm::translate(glm::identity<glm_fbx_mat4>(), -scale_pivot_);
+
+  return pivotTransform * translation *
+         (rotationPivotTransform * rotation * invRotationPivotTransform) *
+         (scalePivotTransform * scale * invScalePivotTransform) *
+         invPivotTransform;
+};
+} // namespace
 
 namespace bee {
-std::optional<GLTFBuilder::XXIndex>
+std::optional<fx::gltf::Material::Texture>
 SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
   const auto fbxFileTexture =
       fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
@@ -21,15 +80,57 @@ SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
   }
 }
 
-std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTextureShared(
+std::optional<fx::gltf::Material::Texture>
+SceneConverter::_convertFileTextureShared(
     fbxsdk::FbxFileTexture &fbx_file_texture_) {
   auto fbxTextureId = fbx_file_texture_.GetUniqueID();
   if (auto r = _textureMap.find(fbxTextureId); r != _textureMap.end()) {
     return r->second;
   } else {
     auto glTFTextureIndex = _convertFileTexture(fbx_file_texture_);
-    _textureMap.emplace(fbxTextureId, glTFTextureIndex);
-    return glTFTextureIndex;
+    if (!glTFTextureIndex) {
+      _textureMap.emplace(fbxTextureId, std::nullopt);
+      return std::nullopt;
+    } else {
+      fx::gltf::Material::Texture materialTexture;
+      materialTexture.index = *glTFTextureIndex;
+
+      const auto fbxUVSet = fbx_file_texture_.UVSet.Get();
+      if (fbxUVSet.IsEmpty() || fbxUVSet == "default") {
+        materialTexture.texCoord = 0;
+      } else {
+        bool matched = false;
+
+        for (const auto &regex :
+             {adsk_3ds_max_uv_set_name_regex, maya_uv_set_name_regex}) {
+          if (std::cmatch matches; std::regex_match(
+                  static_cast<const char *>(fbxUVSet), matches, regex)) {
+            const auto set = std::stoi(matches[1]);
+            // Counting from 1..
+            materialTexture.texCoord = static_cast<std::int32_t>(set - 1);
+            _log(Logger::Level::verbose,
+                 fmt::format("Recognized texture {}'s uv set {} as {}-th.",
+                             fbx_file_texture_.GetName(),
+                             static_cast<const char *>(fbxUVSet),
+                             materialTexture.texCoord));
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          _log(Logger::Level::error,
+               fmt::format("Texture {} specified an unrecognized uv set {}",
+                           fbx_file_texture_.GetName(),
+                           static_cast<const char *>(fbxUVSet)));
+        }
+      }
+
+      _convertTextureUVTransform(fbx_file_texture_, materialTexture);
+
+      _textureMap.emplace(fbxTextureId, materialTexture);
+      return materialTexture;
+    }
   }
 }
 
@@ -51,6 +152,107 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTexture(
   auto glTFTextureIndex =
       _glTFBuilder.add(&fx::gltf::Document::textures, std::move(glTFTexture));
   return glTFTextureIndex;
+}
+
+std::optional<fx::gltf::Material::NormalTexture>
+SceneConverter::_convertTexturePropertyAsNormalTexture(
+    fbxsdk::FbxProperty &fbx_property_) {
+  const auto materialTexture = _convertTextureProperty(fbx_property_);
+  if (!materialTexture) {
+    return std::nullopt;
+  }
+  fx::gltf::Material::NormalTexture normalTexture;
+  static_cast<fx::gltf::Material::Texture &>(normalTexture) = *materialTexture;
+  return normalTexture;
+}
+
+std::optional<fx::gltf::Material::NormalTexture>
+SceneConverter::_convertFileTextureAsNormalTexture(
+    fbxsdk::FbxFileTexture &fbx_file_texture_) {
+  const auto materialTexture = _convertFileTextureShared(fbx_file_texture_);
+  if (!materialTexture) {
+    return std::nullopt;
+  }
+  fx::gltf::Material::NormalTexture normalTexture;
+  static_cast<fx::gltf::Material::Texture &>(normalTexture) = *materialTexture;
+  return normalTexture;
+}
+
+void SceneConverter::_convertTextureUVTransform(
+    const fbxsdk::FbxTexture &fbx_texture_,
+    fx::gltf::Material::Texture &glTF_texture_info_) {
+  // The relation between 3ds Max Offet, Tiling and FBX translation scale:
+  // Translation = 0.5 - (Offset + 0.5) * Tiling
+  //             = 0.5 + (-Offset + -0.5) * Tiling
+  // Scale       = Tiling
+  //
+  // which means:
+  // - Given UVmax
+  // - Flip it
+  // - Cancel the pivot center (0.5, 0.5)
+  // - Scale by tiling
+  // - Re-apply the pivot center
+  //  A displacement of one unit is equal to the texture's width after
+  //  applying U scaling.
+  const auto fbxTranslationU = fbx_texture_.GetTranslationU();
+  const auto fbxTranslationV = fbx_texture_.GetTranslationV();
+  const auto fbxScallingU = fbx_texture_.GetScaleU();
+  const auto fbxScallingV = fbx_texture_.GetScaleV();
+  const auto fbxScallingPivot = fbx_to_glm(fbx_texture_.ScalingPivot.Get());
+  const auto fbxRotationU = fbx_texture_.GetRotationU();
+  const auto fbxRotationV = fbx_texture_.GetRotationV();
+  const auto fbxRotationW = fbx_texture_.GetRotationW();
+  const auto fbxRotationPivot = fbx_to_glm(fbx_texture_.RotationPivot.Get());
+  const auto fbxTranslation = glm::tvec3<fbxsdk::FbxDouble>(
+      fbxTranslationU, fbxTranslationV, static_cast<fbxsdk::FbxDouble>(0.0));
+  const auto fbxRotation = glm::quat_cast(
+      glm::eulerAngleXYZ(glm::radians(fbxRotationU), glm::radians(fbxRotationV),
+                         glm::radians(fbxRotationW)));
+  const auto fbxScale = glm::tvec3<fbxsdk::FbxDouble>(
+      fbxScallingU, fbxScallingV, static_cast<fbxsdk::FbxDouble>(1.0));
+
+  const auto noTransform = fbxTranslation == glm::zero<glm_fbx_vec3>() &&
+                           fbxRotation == glm::identity<glm_fbx_quat>() &&
+                           fbxScale == glm::one<glm_fbx_vec3>() &&
+                           fbxRotationPivot == glm::zero<glm_fbx_vec3>() &&
+                           fbxScallingPivot == glm::zero<glm_fbx_vec3>();
+
+  if (!noTransform) {
+    // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
+
+    const auto glTFOffset = fbxTranslation;
+    const auto glTFScale = fbxScale;
+
+    // TODO: Not invalidated
+    // const auto textureTransformMat = compute_fbx_texture_transform(
+    //    glm::tvec3<fbxsdk::FbxDouble>(-0.5, -0.5, 0.0), fbxTranslation,
+    //    fbxRotation,
+    //    glm_fbx_vec3{fbxRotationPivot[0], fbxRotationPivot[1],
+    //                 fbxRotationPivot[2]},
+    //    fbxScale,
+    //    glm_fbx_vec3{fbxScallingPivot[0], fbxScallingPivot[1],
+    //                 fbxScallingPivot[2]});
+    // glm_fbx_vec3 glTFOffset;
+    // glm_fbx_vec3 glTFScale;
+    // glm_fbx_quat glTFRotation;
+    // glm_fbx_vec3 _skew;
+    // glm_fbx_vec4 _pers;
+    // const auto decomposeSuccess =
+    //    glm::decompose(textureTransformMat, glTFScale, glTFRotation,
+    //                   glTFOffset, _skew, _pers);
+    // assert(decomposeSuccess);
+
+    auto &khrTextureTransformExtension =
+        glTF_texture_info_
+            .extensionsAndExtras["extensions"]["KHR_texture_transform"];
+    khrTextureTransformExtension["offset"] = Json::array(
+        {static_cast<float>(glTFOffset.x), static_cast<float>(glTFOffset.y)});
+    // TODO
+    // khrTextureTransformExtension["rotation"] =
+    // glm::radians(fbxRotationW);
+    khrTextureTransformExtension["scale"] = Json::array(
+        {static_cast<float>(glTFScale.x), static_cast<float>(glTFScale.y)});
+  }
 }
 
 bool SceneConverter::_hasValidImageExtension(

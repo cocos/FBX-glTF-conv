@@ -370,10 +370,9 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
       glTFPbrMetallicRoughness.baseColorFactor[i] =
           static_cast<float>(diffuseFactor);
     }
-    if (const auto glTFDiffuseTextureIndex =
+    if (const auto glTFDiffuseTexture =
             _convertTextureProperty(fbx_material_.Diffuse)) {
-      glTFPbrMetallicRoughness.baseColorTexture.index =
-          *glTFDiffuseTextureIndex;
+      glTFPbrMetallicRoughness.baseColorTexture = *glTFDiffuseTexture;
     } else {
       const auto fbxDiffuseColor = fbx_material_.Diffuse.Get();
       for (int i = 0; i < 3; ++i) {
@@ -385,23 +384,23 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
   }
 
   // Normal map
-  if (const auto glTFNormalMapIndex =
-          _convertTextureProperty(fbx_material_.NormalMap)) {
-    glTFMaterial.normalTexture.index = *glTFNormalMapIndex;
+  if (const auto glTFNormalMap =
+          _convertTexturePropertyAsNormalTexture(fbx_material_.NormalMap)) {
+    glTFMaterial.normalTexture = *glTFNormalMap;
   }
 
   // Bump map
-  if (const auto glTFBumpMapIndex =
-          _convertTextureProperty(fbx_material_.Bump)) {
-    glTFMaterial.normalTexture.index = *glTFBumpMapIndex;
+  if (const auto glTFBumpMap =
+          _convertTexturePropertyAsNormalTexture(fbx_material_.Bump)) {
+    glTFMaterial.normalTexture = *glTFBumpMap;
   }
 
   // Emissive
   {
     const auto emissiveFactor = fbx_material_.EmissiveFactor.Get();
-    if (const auto glTFEmissiveTextureIndex =
+    if (const auto glTFEmissiveTexture =
             _convertTextureProperty(fbx_material_.Emissive)) {
-      glTFMaterial.emissiveTexture.index = *glTFEmissiveTextureIndex;
+      glTFMaterial.emissiveTexture = *glTFEmissiveTexture;
       for (int i = 0; i < 3; ++i) {
         glTFMaterial.emissiveFactor[i] = static_cast<float>(emissiveFactor);
       }
@@ -487,17 +486,17 @@ SceneConverter::_convertStanardMaterialProperties(
 
   // Normal map
   if (standardProperties.normal_map) {
-    if (const auto glTFNormalMapIndex =
-            _convertFileTextureShared(*standardProperties.normal_map)) {
-      glTFMaterial.normalTexture.index = *glTFNormalMapIndex;
+    if (const auto glTFNormalMap = _convertFileTextureAsNormalTexture(
+            *standardProperties.normal_map)) {
+      glTFMaterial.normalTexture = *glTFNormalMap;
     }
   }
 
   // Bump map
   if (standardProperties.bump) {
-    if (const auto glTFBumpMapIndex =
-            _convertFileTextureShared(*standardProperties.bump)) {
-      glTFMaterial.normalTexture.index = *glTFBumpMapIndex;
+    if (const auto glTFBumpMap =
+            _convertFileTextureAsNormalTexture(*standardProperties.bump)) {
+      glTFMaterial.normalTexture = *glTFBumpMap;
     }
   }
 
@@ -568,10 +567,9 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertUnknownMaterial(
         const auto fbxFileTexture =
             fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
         if (fbxFileTexture) {
-          const auto glTFTextureIndex =
-              _convertFileTextureShared(*fbxFileTexture);
-          if (glTFTextureIndex) {
-            return *glTFTextureIndex;
+          const auto glTFTexture = _convertFileTextureShared(*fbxFileTexture);
+          if (glTFTexture) {
+            return *glTFTexture;
           } else {
             return {}; // Bad texture.
           }
