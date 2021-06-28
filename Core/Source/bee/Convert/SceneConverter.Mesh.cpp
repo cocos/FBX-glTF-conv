@@ -161,8 +161,11 @@ fx::gltf::Primitive SceneConverter::_convertMeshAsPrimitive(
     std::span<fbxsdk::FbxShape *> fbx_shapes_,
     std::span<MeshSkinData::InfluenceChannel> skin_influence_channels_,
     MaterialUsage &material_usage_) {
-  auto vertexLayout =
+  const auto vertexLayout =
       _getFbxMeshVertexLayout(fbx_mesh_, fbx_shapes_, skin_influence_channels_);
+  material_usage_.texture_context.channel_index_map =
+      vertexLayout.uv_channel_index_map;
+
   const auto vertexSize = vertexLayout.size;
 
   using UniqueVertexIndex = std::uint32_t;
@@ -357,9 +360,13 @@ FbxMeshVertexLayout SceneConverter::_getFbxMeshVertexLayout(
       vertexLaytout.uvs.resize(nUVElements);
       for (decltype(nUVElements) iUVElement = 0; iUVElement < nUVElements;
            ++iUVElement) {
+        const auto &elementUV = *fbx_mesh_.GetElementUV(iUVElement);
+        const std::string_view name = elementUV.GetName();
+        if (!name.empty()) {
+          vertexLaytout.uv_channel_index_map.emplace(name, iUVElement);
+        }
         vertexLaytout.uvs[iUVElement] = {
-            vertexLaytout.size,
-            makeFbxLayerElementAccessor(*fbx_mesh_.GetElementUV(iUVElement))};
+            vertexLaytout.size, makeFbxLayerElementAccessor(elementUV)};
         vertexLaytout.size += sizeof(NeutralUVComponent) * 2;
       }
     }

@@ -177,11 +177,29 @@ private:
     std::vector<double> values;
   };
 
+  struct TextureContext {
+    std::unordered_map<std::string, std::uint32_t> channel_index_map;
+
+    bool compatible_with(const TextureContext &that_) const {
+      const auto &lhs = this->channel_index_map;
+      const auto &rhs = that_.channel_index_map;
+      for (const auto &[k, v] : lhs) {
+        if (const auto r = rhs.find(k); r != rhs.end() && r->second != v) {
+          return false;
+        }
+      }
+      return true;
+    }
+  };
+
   struct MaterialUsage {
     bool hasTransparentVertex = false;
 
+    TextureContext texture_context;
+
     bool operator==(const MaterialUsage &that_) const {
-      return this->hasTransparentVertex == that_.hasTransparentVertex;
+      return this->hasTransparentVertex == that_.hasTransparentVertex &&
+             this->texture_context.compatible_with(that_.texture_context);
     }
   };
 
@@ -357,19 +375,27 @@ private:
                                     const MaterialUsage &material_usage_);
 
   std::optional<fx::gltf::Material::Texture>
-  _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_);
+  _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_,
+                          const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::Texture>
-  _convertFileTextureShared(fbxsdk::FbxFileTexture &fbx_file_texture_);
+  _convertFileTextureShared(fbxsdk::FbxFileTexture &fbx_file_texture_,
+                            const TextureContext &texture_context_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertFileTexture(const fbxsdk::FbxFileTexture &fbx_texture_);
 
   std::optional<fx::gltf::Material::NormalTexture>
-  _convertTexturePropertyAsNormalTexture(fbxsdk::FbxProperty &fbx_property_);
+  _convertTexturePropertyAsNormalTexture(
+      fbxsdk::FbxProperty &fbx_property_,
+      const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::NormalTexture>
-  _convertFileTextureAsNormalTexture(fbxsdk::FbxFileTexture &fbx_file_texture_);
+  _convertFileTextureAsNormalTexture(fbxsdk::FbxFileTexture &fbx_file_texture_,
+                                     const TextureContext &texture_context_);
+
+  std::uint32_t _findUVIndex(const fbxsdk::FbxTexture &fbx_texture_,
+                             const TextureContext &texture_context_);
 
   void
   _convertTextureUVTransform(const fbxsdk::FbxTexture &fbx_texture_,
