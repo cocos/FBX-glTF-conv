@@ -1,10 +1,11 @@
 
 #pragma once
 
-#include <cstdint>
-#include <optional>
 #include <bee/Convert/NeutralType.h>
 #include <bee/Convert/fbxsdk/LayerelementAccessor.h>
+#include <cstdint>
+#include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace bee {
@@ -57,5 +58,7 @@ struct FbxMeshVertexLayout {
   };
 
   std::vector<ShapeLayout> shapes;
+
+  std::unordered_map<std::string, std::uint32_t> uv_channel_index_map;
 };
 } // namespace bee

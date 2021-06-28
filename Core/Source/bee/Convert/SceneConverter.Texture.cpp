@@ -21,13 +21,6 @@ glm_fbx_vec3 fbx_to_glm(const fbxsdk::FbxDouble3 &v_) {
   return {v_[0], v_[1], v_[2]};
 }
 
-std::regex adsk_3ds_max_uv_set_name_regex{R"(UVChannel_(\d+))",
-                                          std::regex_constants::ECMAScript};
-
-// https://community.esri.com/t5/arcgis-cityengine-questions/city-engine-does-not-quot-read-quot-multiple-uvset-from-collada/td-p/433179
-std::regex maya_uv_set_name_regex{R"(map(\d+))",
-                                  std::regex_constants::ECMAScript};
-
 glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
                                            glm_fbx_vec3 offset_,
                                            glm_fbx_quat rotation_,
@@ -65,11 +58,13 @@ glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
 
 namespace bee {
 std::optional<fx::gltf::Material::Texture>
-SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
+SceneConverter::_convertTextureProperty(
+    fbxsdk::FbxProperty &fbx_property_,
+    const TextureContext &texture_context_) {
   const auto fbxFileTexture =
       fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
   if (fbxFileTexture) {
-    return _convertFileTextureShared(*fbxFileTexture);
+    return _convertFileTextureShared(*fbxFileTexture, texture_context_);
   } else {
     const auto fbxTexture = fbx_property_.GetSrcObject<fbxsdk::FbxTexture>();
     if (fbxTexture) {
@@ -82,56 +77,35 @@ SceneConverter::_convertTextureProperty(fbxsdk::FbxProperty &fbx_property_) {
 
 std::optional<fx::gltf::Material::Texture>
 SceneConverter::_convertFileTextureShared(
-    fbxsdk::FbxFileTexture &fbx_file_texture_) {
-  auto fbxTextureId = fbx_file_texture_.GetUniqueID();
-  if (auto r = _textureMap.find(fbxTextureId); r != _textureMap.end()) {
-    return r->second;
-  } else {
-    auto glTFTextureIndex = _convertFileTexture(fbx_file_texture_);
-    if (!glTFTextureIndex) {
-      _textureMap.emplace(fbxTextureId, std::nullopt);
-      return std::nullopt;
+    fbxsdk::FbxFileTexture &fbx_file_texture_,
+    const TextureContext &texture_context_) {
+  auto materialTexture = [&]() -> std::optional<fx::gltf::Material::Texture> {
+    auto fbxTextureId = fbx_file_texture_.GetUniqueID();
+    if (auto r = _textureMap.find(fbxTextureId); r != _textureMap.end()) {
+      return r->second;
     } else {
-      fx::gltf::Material::Texture materialTexture;
-      materialTexture.index = *glTFTextureIndex;
-
-      const auto fbxUVSet = fbx_file_texture_.UVSet.Get();
-      if (fbxUVSet.IsEmpty() || fbxUVSet == "default") {
-        materialTexture.texCoord = 0;
+      auto glTFTextureIndex = _convertFileTexture(fbx_file_texture_);
+      if (!glTFTextureIndex) {
+        _textureMap.emplace(fbxTextureId, std::nullopt);
+        return std::nullopt;
       } else {
-        bool matched = false;
+        fx::gltf::Material::Texture materialTexture;
+        materialTexture.index = *glTFTextureIndex;
 
-        for (const auto &regex :
-             {adsk_3ds_max_uv_set_name_regex, maya_uv_set_name_regex}) {
-          if (std::cmatch matches; std::regex_match(
-                  static_cast<const char *>(fbxUVSet), matches, regex)) {
-            const auto set = std::stoi(matches[1]);
-            // Counting from 1..
-            materialTexture.texCoord = static_cast<std::int32_t>(set - 1);
-            _log(Logger::Level::verbose,
-                 fmt::format("Recognized texture {}'s uv set {} as {}-th.",
-                             fbx_file_texture_.GetName(),
-                             static_cast<const char *>(fbxUVSet),
-                             materialTexture.texCoord));
-            matched = true;
-            break;
-          }
-        }
+        _convertTextureUVTransform(fbx_file_texture_, materialTexture);
 
-        if (!matched) {
-          _log(Logger::Level::error,
-               fmt::format("Texture {} specified an unrecognized uv set {}",
-                           fbx_file_texture_.GetName(),
-                           static_cast<const char *>(fbxUVSet)));
-        }
+        _textureMap.emplace(fbxTextureId, materialTexture);
+        return materialTexture;
       }
-
-      _convertTextureUVTransform(fbx_file_texture_, materialTexture);
-
-      _textureMap.emplace(fbxTextureId, materialTexture);
-      return materialTexture;
     }
+  }();
+
+  if (materialTexture) {
+    const auto uvIndex = _findUVIndex(fbx_file_texture_, texture_context_);
+    materialTexture->texCoord = static_cast<std::int32_t>(uvIndex);
   }
+
+  return materialTexture;
 }
 
 std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTexture(
@@ -156,8 +130,10 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTexture(
 
 std::optional<fx::gltf::Material::NormalTexture>
 SceneConverter::_convertTexturePropertyAsNormalTexture(
-    fbxsdk::FbxProperty &fbx_property_) {
-  const auto materialTexture = _convertTextureProperty(fbx_property_);
+    fbxsdk::FbxProperty &fbx_property_,
+    const TextureContext &texture_context_) {
+  const auto materialTexture =
+      _convertTextureProperty(fbx_property_, texture_context_);
   if (!materialTexture) {
     return std::nullopt;
   }
@@ -168,14 +144,37 @@ SceneConverter::_convertTexturePropertyAsNormalTexture(
 
 std::optional<fx::gltf::Material::NormalTexture>
 SceneConverter::_convertFileTextureAsNormalTexture(
-    fbxsdk::FbxFileTexture &fbx_file_texture_) {
-  const auto materialTexture = _convertFileTextureShared(fbx_file_texture_);
+    fbxsdk::FbxFileTexture &fbx_file_texture_,
+    const TextureContext &texture_context_) {
+  const auto materialTexture =
+      _convertFileTextureShared(fbx_file_texture_, texture_context_);
   if (!materialTexture) {
     return std::nullopt;
   }
   fx::gltf::Material::NormalTexture normalTexture;
   static_cast<fx::gltf::Material::Texture &>(normalTexture) = *materialTexture;
   return normalTexture;
+}
+
+std::uint32_t
+SceneConverter::_findUVIndex(const fbxsdk::FbxTexture &fbx_texture_,
+                             const TextureContext &texture_context_) {
+  const auto fbxUVSet = fbx_texture_.UVSet.Get();
+  if (fbxUVSet.IsEmpty() || fbxUVSet == "default") {
+    return 0;
+  }
+
+  if (const auto rIndex = texture_context_.channel_index_map.find(
+          std::string{fbxUVSet.operator const char *()});
+      rIndex != texture_context_.channel_index_map.end()) {
+    return rIndex->second;
+  }
+
+  _log(Logger::Level::warning,
+       fmt::format("Texture {} specified an unrecognized uv set {}",
+                   fbx_texture_.GetName(),
+                   static_cast<const char *>(fbxUVSet)));
+  return 0;
 }
 
 void SceneConverter::_convertTextureUVTransform(
