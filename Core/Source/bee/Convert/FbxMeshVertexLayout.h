@@ -5,6 +5,7 @@
 #include <bee/Convert/fbxsdk/LayerelementAccessor.h>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
