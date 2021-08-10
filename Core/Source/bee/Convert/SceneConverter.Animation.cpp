@@ -372,13 +372,14 @@ SceneConverter::MorphAnimation SceneConverter::_extractWeightsAnimation(
         }
       };
 
+  const auto firstTimeDouble = anim_range_.first_frame_seconds();
   for (decltype(morphAnimation.times.size()) iFrame = 0;
        iFrame < morphAnimation.times.size(); ++iFrame) {
     const auto fbxFrame = anim_range_.firstFrame + iFrame;
     fbxsdk::FbxTime time;
     time.SetFrame(fbxFrame, timeMode);
 
-    morphAnimation.times[iFrame] = time.GetSecondDouble();
+    morphAnimation.times[iFrame] = time.GetSecondDouble() - firstTimeDouble;
 
     TargetWeightsCount offset = 0;
     for (const auto &[blendShapeIndex, blendShapeChannelIndex, name,
@@ -422,6 +423,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
   std::vector<fbxsdk::FbxQuaternion> rotations;
   std::vector<fbxsdk::FbxVector4> scales;
 
+  const auto firstTimeDouble = anim_range_.first_frame_seconds();
   for (std::remove_const_t<decltype(nFrames)> iFrame = 0; iFrame < nFrames;
        ++iFrame) {
     const auto fbxFrame = anim_range_.firstFrame + iFrame;
@@ -430,7 +432,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
 
     const auto &localTransform = fbx_node_.EvaluateLocalTransform(fbxTime);
 
-    const auto time = fbxTime.GetSecondDouble();
+    const auto time = fbxTime.GetSecondDouble() - firstTimeDouble;
     fbxsdk::FbxVector4 translation;
     if (isTranslationAnimated) {
       translation = _applyUnitScaleFactorV3(localTransform.GetT());

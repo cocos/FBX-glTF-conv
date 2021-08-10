@@ -170,6 +170,12 @@ private:
     fbxsdk::FbxLongLong frames_count() const {
       return lastFrame - firstFrame + 1;
     }
+
+    fbxsdk::FbxDouble first_frame_seconds() const {
+      fbxsdk::FbxTime firstTime;
+      firstTime.SetFrame(firstFrame, timeMode);
+      return firstTime.GetSecondDouble();
+    }
   };
 
   struct MorphAnimation {
