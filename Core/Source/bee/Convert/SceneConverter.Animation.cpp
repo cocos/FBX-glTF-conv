@@ -112,7 +112,9 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
     const auto animName = _convertName(animStack->GetName());
     glTFAnimation.name = animName;
 
-    _log(Logger::Level::verbose, fmt::format("Take {}: {}s", animName, timeSpan.GetDuration().GetSecondDouble()));
+    _log(Logger::Level::verbose,
+         fmt::format("Take {}: {}s", animName,
+                     timeSpan.GetDuration().GetSecondDouble()));
 
     fbx_scene_.SetCurrentAnimationStack(animStack);
     for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
@@ -153,7 +155,7 @@ SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
            ", " +
            std::to_string(referenceTimeSpan.GetStop().GetSecondDouble()) + "]");
 
-  fbxsdk::FbxTimeSpan animTimeSpan;
+  std::optional<fbxsdk::FbxTimeSpan> animTimeSpan;
   for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
        iAnimLayer < nAnimLayers; ++iAnimLayer) {
     const auto animLayer =
@@ -170,8 +172,10 @@ SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
                    InvalidNodeAnimationRange{
                        fbx_node_.GetName(), maxAllowedAnimDurationSeconds,
                        duration, fbx_anim_stack_.GetName()});
+            } else if (animTimeSpan) {
+              animTimeSpan->UnionAssignment(interval);
             } else {
-              animTimeSpan.UnionAssignment(interval);
+              animTimeSpan = interval;
             }
           }
 
@@ -186,7 +190,7 @@ SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
     getInterval(*fbx_scene_.GetRootNode());
   }
 
-  return animTimeSpan;
+  return animTimeSpan.value_or(fbxsdk::FbxTimeSpan{});
 }
 
 void SceneConverter::_convertAnimationLayer(
