@@ -45,6 +45,9 @@ if (POLYFILLS_STD_FILESYSTEM)
     target_compile_definitions (BeeCore PRIVATE BEE_POLYFILLS_STD_FILESYSTEM)
 endif ()
 
+if (NOT DEFINED FbxSdkHome)
+    message(FATAL_ERROR "You must specify the FBX SDK home.")
+endif ()
 message (STATUS "FBX SDK home: ${FbxSdkHome}")
 
 # https://blog.kitware.com/cmake-and-the-default-build-type/
