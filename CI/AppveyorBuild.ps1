@@ -12,11 +12,10 @@ if (($env:APPVEYOR_BUILD_WORKER_IMAGE).StartsWith('Visual Studio')) {
 }
 
 function InstallVcpkg {
+    git clone https://github.com/microsoft/vcpkg | Out-Host
     if ($platform -eq [Platform]::windows) {
-        git clone https://github.com/microsoft/vcpkg | Out-Host
         .\vcpkg\bootstrap-vcpkg.bat | Out-Host
     } elseif ($platform -eq [Platform]::macOS) {
-        git clone https://github.com/microsoft/vcpkg | Out-Host
         ./vcpkg/bootstrap-vcpkg.sh | Out-Host
         xcode-select --install | Out-Host
     } else {
@@ -62,9 +61,7 @@ function InstallFbxSdk {
 }
 
 function InstallDependencies {
-    $triplet = GetTriplet
-
-    ./vcpkg/vcpkg install libxml2:$triplet zlib:$triplet nlohmann-json:$triplet fmt:$triplet clipp:$triplet cppcodec:$triplet range-v3:$triplet
+    Write-Host "Dependencies should have been automatically installed by vcpkg."
 }
 
 # https://stackoverflow.com/questions/54372601/running-git-clone-from-powershell-giving-errors-even-when-it-seems-to-work
