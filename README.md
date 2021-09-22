@@ -126,4 +126,5 @@ But Cocos team has to find another approach because:
 Again, the FBX is complex and specification-less. In development, we often reference from or are inspired from the following predecessors:
 
 * [FBX2glTF](https://github.com/facebookincubator/FBX2glTF)
+
 * [claygl](https://github.com/pissang/claygl)
