@@ -408,12 +408,11 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
     ifstream.read(fileContent.data(), fileContent.size());
     const auto base64Data = cppcodec::base64_rfc4648::encode(
         reinterpret_cast<const char *>(fileContent.data()), fileContent.size());
-    const auto base64DataU8 =
-        std::u8string_view{reinterpret_cast<const char8_t *>(base64Data.data()),
-                           base64Data.size()};
     const auto mimeType =
         _getMimeTypeFromExtension(normalizedPath.extension().u8string());
-    return fmt::format(u8"data:{};base64,{}", mimeType, base64DataU8);
+    const auto chars = fmt::format("data:{};base64,{}",
+                                   forceTreatAsPlain(mimeType), base64Data);
+    return std::u8string(reinterpret_cast<const char8_t *>(chars.data()));
   }
   case ConvertOptions::PathMode::prefer_relative: {
     const auto relativePath =
