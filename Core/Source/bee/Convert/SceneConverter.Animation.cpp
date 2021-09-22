@@ -321,15 +321,14 @@ SceneConverter::MorphAnimation SceneConverter::_extractWeightsAnimation(
 
   const auto nFrames = static_cast<decltype(MorphAnimation::times)::size_type>(
       anim_range_.frames_count());
-  const auto timeMode = anim_range_.timeMode;
   morphAnimation.times.resize(nFrames, 0.0);
   morphAnimation.values.resize(nTargetWeights * nFrames);
 
   auto extractFrame =
       [](decltype(MorphAnimation::values)::iterator out_weights_,
          fbxsdk::FbxTime time_, fbxsdk::FbxAnimCurve *shape_channel_,
-         const decltype(
-             FbxBlendShapeData::Channel::targetShapes) &target_shapes_) {
+         const decltype(FbxBlendShapeData::Channel::targetShapes)
+             &target_shapes_) {
         if (target_shapes_.empty()) {
           return;
         }
@@ -375,9 +374,7 @@ SceneConverter::MorphAnimation SceneConverter::_extractWeightsAnimation(
   const auto firstTimeDouble = anim_range_.first_frame_seconds();
   for (decltype(morphAnimation.times.size()) iFrame = 0;
        iFrame < morphAnimation.times.size(); ++iFrame) {
-    const auto fbxFrame = anim_range_.firstFrame + iFrame;
-    fbxsdk::FbxTime time;
-    time.SetFrame(fbxFrame, timeMode);
+    const auto time = anim_range_.at(iFrame);
 
     morphAnimation.times[iFrame] = time.GetSecondDouble() - firstTimeDouble;
 
@@ -416,8 +413,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     return;
   }
 
-  const auto nFrames = static_cast<decltype(MorphAnimation::times)::size_type>(
-      anim_range_.lastFrame - anim_range_.firstFrame);
+  const auto nFrames = anim_range_.frames_count();
   std::vector<double> times;
   std::vector<fbxsdk::FbxVector4> translations;
   std::vector<fbxsdk::FbxQuaternion> rotations;
@@ -426,9 +422,7 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
   const auto firstTimeDouble = anim_range_.first_frame_seconds();
   for (std::remove_const_t<decltype(nFrames)> iFrame = 0; iFrame < nFrames;
        ++iFrame) {
-    const auto fbxFrame = anim_range_.firstFrame + iFrame;
-    fbxsdk::FbxTime fbxTime;
-    fbxTime.SetFrame(fbxFrame, anim_range_.timeMode);
+    const auto fbxTime = anim_range_.at(iFrame);
 
     const auto &localTransform = fbx_node_.EvaluateLocalTransform(fbxTime);
 

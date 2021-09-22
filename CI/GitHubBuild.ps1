@@ -22,11 +22,10 @@ ArtifactPath: $ArtifactPath
 # exit 0
 
 function InstallVcpkg {
+    git clone https://github.com/microsoft/vcpkg | Out-Host
     if ($IsWindows) {
-        git clone https://github.com/microsoft/vcpkg | Out-Host
         .\vcpkg\bootstrap-vcpkg.bat | Out-Host
     } elseif ($IsMacOS) {
-        git clone https://github.com/microsoft/vcpkg | Out-Host
         ./vcpkg/bootstrap-vcpkg.sh | Out-Host
         xcode-select --install | Out-Host
     } else {
