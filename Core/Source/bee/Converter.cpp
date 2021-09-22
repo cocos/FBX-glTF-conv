@@ -158,17 +158,16 @@ private:
       while (minor != 0 && minor % 10 == 0) {
         minor /= 10;
       }
-      (*options_.logger)(
-          Logger::Level::verbose,
-          fmt::format(u8"FBX file version: {}.{}", major, minor));
-      const auto creator = forceTreatAsU8(
-          static_cast<const char *>(fbxFileHeaderInfo->mCreator));
       (*options_.logger)(Logger::Level::verbose,
-                         fmt::format(u8"Creator: {}", creator));
+                         fmt::format("FBX file version: {}.{}", major, minor));
+      const auto creator =
+          static_cast<const char *>(fbxFileHeaderInfo->mCreator);
+      (*options_.logger)(Logger::Level::verbose,
+                         fmt::format("Creator: {}", creator));
       if (fbxFileHeaderInfo->mCreationTimeStampPresent) {
         (*options_.logger)(
             Logger::Level::verbose,
-            fmt::format(u8"Creation time: {}-{}-{} {}:{}:{}",
+            fmt::format("Creation time: {}-{}-{} {}:{}:{}",
                         fbxFileHeaderInfo->mCreationTimeStamp.mYear,
                         fbxFileHeaderInfo->mCreationTimeStamp.mMonth,
                         fbxFileHeaderInfo->mCreationTimeStamp.mDay,
