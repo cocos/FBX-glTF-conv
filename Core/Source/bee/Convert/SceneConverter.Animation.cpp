@@ -155,6 +155,10 @@ SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
            ", " +
            std::to_string(referenceTimeSpan.GetStop().GetSecondDouble()) + "]");
 
+  if (localTimeSpan.GetStart() != 0 || localTimeSpan.GetStop() != 0) {
+    return localTimeSpan;
+  }
+
   std::optional<fbxsdk::FbxTimeSpan> animTimeSpan;
   for (std::remove_const_t<decltype(nAnimLayers)> iAnimLayer = 0;
        iAnimLayer < nAnimLayers; ++iAnimLayer) {
