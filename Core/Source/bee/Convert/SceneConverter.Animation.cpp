@@ -77,6 +77,12 @@ void to_json(nlohmann::json &j_, const InvalidNodeAnimationRange &error_) {
 }
 
 void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
+  if (_animationTimeMode == fbxsdk::FbxTime::eDefaultMode) {
+    _log(Logger::Level::error, "The FBX model did not specify a valid time "
+                               "mode. You need to specify it manually.");
+    return;
+  }
+
   const auto nAnimStacks = fbx_scene_.GetSrcObjectCount<fbxsdk::FbxAnimStack>();
   for (std::remove_const_t<decltype(nAnimStacks)> iAnimStack = 0;
        iAnimStack < nAnimStacks; ++iAnimStack) {
@@ -99,6 +105,9 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
       continue;
     }
     const auto usedAnimationTimeMode = _animationTimeMode;
+    _log(Logger::Level::verbose,
+         fmt::format("Frame rate: {}",
+                     fbxsdk::FbxTime::GetFrameRate(_animationTimeMode)));
     const auto firstFrame =
         timeSpan.GetStart().GetFrameCount(usedAnimationTimeMode);
     // It may not be integer multiple, we do ceil thereof.
@@ -106,7 +115,7 @@ void SceneConverter::_convertAnimation(fbxsdk::FbxScene &fbx_scene_) {
         timeSpan.GetStop().GetFrameCountPrecise(usedAnimationTimeMode)));
 
     assert(lastFrame >= firstFrame);
-    AnimRange animRange{_animationTimeMode, firstFrame, lastFrame};
+    AnimRange animRange{usedAnimationTimeMode, firstFrame, lastFrame};
 
     fx::gltf::Animation glTFAnimation;
     const auto animName = _convertName(animStack->GetName());

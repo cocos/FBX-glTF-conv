@@ -66,7 +66,10 @@ struct ConvertOptions {
 
   bool noFlipV = false;
 
-  std::uint32_t animationBakeRate = 30;
+  /// <summary>
+  /// 0 means auto-detect.
+  /// </summary>
+  std::uint32_t animationBakeRate = 0;
 
   struct TextureResolution {
     bool disabled = false;

@@ -50,7 +50,19 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
     : _glTFBuilder(glTF_builder_), _fbxManager(fbx_manager_),
       _fbxScene(fbx_scene_), _options(options_), _fbxFileName(fbx_file_name_),
       _fbxGeometryConverter(&fbx_manager_) {
-  _animationTimeMode = fbxsdk::FbxTime::ConvertFrameRateToTimeMode(static_cast<double>(options_.animationBakeRate));
+  const auto &globalSettings = fbx_scene_.GetGlobalSettings();
+  if (!options_.animationBakeRate) {
+    _animationTimeMode = globalSettings.GetTimeMode();
+  } else {
+    _animationTimeMode = fbxsdk::FbxTime::ConvertFrameRateToTimeMode(
+        static_cast<double>(options_.animationBakeRate));
+  }
+
+  const auto frameRate = fbxsdk::FbxTime::GetFrameRate(_animationTimeMode);
+  _log(Logger::Level::verbose, fmt::format("Frame rate: {}", frameRate));
+
+  auto &documentExtras = glTF_builder_.document().extensionsAndExtras;
+  documentExtras["extras"]["animationFrameRate"] = frameRate;
 }
 
 void SceneConverter::convert() {
