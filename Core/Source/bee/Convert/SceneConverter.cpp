@@ -62,7 +62,7 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
   _log(Logger::Level::verbose, fmt::format("Frame rate: {}", frameRate));
 
   auto &documentExtras = glTF_builder_.document().extensionsAndExtras;
-  documentExtras["extras"]["animationFrameRate"] = frameRate;
+  documentExtras["extras"]["FBX-glTF-conv"]["animationFrameRate"] = frameRate;
 }
 
 void SceneConverter::convert() {
