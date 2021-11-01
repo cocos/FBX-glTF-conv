@@ -52,10 +52,21 @@ private:
   bee::Json _messages = bee::Json::array();
 };
 
-int main(int argc_, char *argv_[]) {
+int main(int argc_, const char *argv_[]) {
   namespace fs = bee::filesystem;
 
-  auto cliOptions = beecli::readCliArgs(argc_, argv_);
+  const auto argsU8 = beecli::getCommandLineArgsU8(argc_, argv_);
+  if (!argsU8) {
+    return -1;
+  }
+
+  std::vector<std::string_view> argsU8SV(argsU8->size());
+  std::transform(argsU8->begin(), argsU8->end(), argsU8SV.begin(),
+                 [](auto &s_) {
+                   return std::string_view{s_.data(), s_.size()};
+                 });
+
+  auto cliOptions = beecli::readCliArgs(argsU8SV);
   if (!cliOptions) {
     return -1;
   }
@@ -109,7 +120,6 @@ int main(int argc_, char *argv_[]) {
   private:
     std::u8string_view _inFile;
     std::u8string_view _outFile;
-    bool _dataUriForBuffers;
   };
 
   MyWriter writer{cliOptions->inputFile, cliOptions->outFile};

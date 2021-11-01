@@ -4,8 +4,10 @@
 
 #include <bee/Converter.h>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace beecli {
 struct CliArgs {
@@ -16,5 +18,8 @@ struct CliArgs {
   bee::ConvertOptions convertOptions;
 };
 
-std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]);
+std::optional<std::vector<std::string>>
+getCommandLineArgsU8(int argc_, const char *argv_[]);
+
+std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_);
 } // namespace beecli

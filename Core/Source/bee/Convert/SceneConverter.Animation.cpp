@@ -164,8 +164,10 @@ SceneConverter::_getAnimStackTimeSpan(fbxsdk::FbxAnimStack &fbx_anim_stack_,
            ", " +
            std::to_string(referenceTimeSpan.GetStop().GetSecondDouble()) + "]");
 
-  if (localTimeSpan.GetStart() != 0 || localTimeSpan.GetStop() != 0) {
-    return localTimeSpan;
+  if (_options.prefer_local_time_span) {
+    if (localTimeSpan.GetStart() != 0 || localTimeSpan.GetStop() != 0) {
+      return localTimeSpan;
+    }
   }
 
   std::optional<fbxsdk::FbxTimeSpan> animTimeSpan;

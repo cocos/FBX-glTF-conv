@@ -12,7 +12,8 @@
     "fmt",
     "cppcodec",
     "range-v3",
-    "clipp",
-    "glm"
+    "cxxopts",
+    "glm",
+    "doctest"
   ]
 }
