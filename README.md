@@ -18,39 +18,35 @@ There are some options, run the executable without any arguments:
 ```ps1
 > FBX-glTF-conv
 
-SYNOPSIS
-        FBX-glTF-conv.exe <input file> [--out
-            <out-file>] [--fbm-dir <fbm-dir>] [--no-flip-v] [--unit-conversion <unit-conversion>]
-            [--no-texture-resolution] [--texture-search-locations <texture-search-locations>...]
-            [--animation-bake-rate <animation-bake-rate>] [--log-file <log-file>] [--verbose]
+This is a FBX to glTF file format converter.
+Usage:
+  FBX-glTF-conv [OPTION...] positional parameters
 
-OPTIONS
-        --out       The output path to the .gltf or .glb file. Defaults to
-                    `<working-directory>/<FBX-filename-basename>.gltf`
+      --fbm-dir arg             The directory to store the embedded media.
+      --out                     The output path to the .gltf or .glb file.
+                                Defaults to
+                                `<working-directory>/<FBX-filename-basename>.gltf`
+      --no-flip-v               Do not flip V texture coordinates.
+      --unit-conversion arg       -
 
-        --fbm-dir   The directory to store the embedded media.
-        --no-flip-v Do not flip V texture coordinates.
-        <unit-conversion>
-                    How to perform unit converseion.
-                    - `geometry-level`(default) Do unit conversion at geometry level.
-                    - `hierarchy-level` Do unit conversion at hierarchy level.
-                    - `disabled` Disable unit conversion. This may cause the generated glTF does't
-                    conform to glTF specification.
-
-        --no-texture-resolution
-                    Do not resolve textures.
-
-        --texture-search-locations
-                    Texture search locations. These path shall be absolute path or relative path
-                    from input file's directory.
-
-        <animation-bake-rate>
-                    Animation bake rate(in FPS).
-
-        --log-file  Specify the log file(logs are outputed as JSON). If not specified, logs're
-                    printed to console
-
-        --verbose   Verbose output.
+                                - `hierarchy-level` Do unit conversion at
+                                  - `disabled` Disable unit
+                                conversion. This may cause the generated glTF
+                                does't conform to glTF specification. (default:
+                                geometry-level)
+      --no-texture-resolution   Do not resolve textures.
+      --prefer-local-time-span  Prefer local time spans recorded in FBX file
+                                for animation exporting. (default: true)
+      --animation-bake-rate arg
+                                Animation bake rate(in FPS). (default: 30)
+      --texture-search-locations arg
+                                Texture search locations. These path shall be
+                                absolute path or relative path from input
+                                file's directory.
+      --verbose                 Verbose output.
+      --log-file arg            Specify the log file(logs are outputed as
+                                JSON). If not specified, logs're printed to
+                                console
 ```
 
 ## Build

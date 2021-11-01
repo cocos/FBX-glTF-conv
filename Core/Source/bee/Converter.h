@@ -71,6 +71,11 @@ struct ConvertOptions {
   /// </summary>
   std::uint32_t animationBakeRate = 0;
 
+  /// <summary>
+  /// Whether to prefer local time spans recorded in FBX file for animation exporting.
+  /// </summary>
+  bool prefer_local_time_span = true;
+
   struct TextureResolution {
     bool disabled = false;
     std::vector<std::u8string> locations;

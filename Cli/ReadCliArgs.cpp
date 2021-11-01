@@ -1,20 +1,9 @@
 
 
 #include "ReadCliArgs.h"
-#include <type_traits>
-
-// https://github.com/muellan/clipp/issues/53
-// clang is not completed: https://libcxx.llvm.org/cxx2a_status.html
-#if _MSC_VER
-namespace std {
-template <class> struct result_of;
-template <class F, class... ArgTypes>
-struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
-} // namespace std
-#endif
-#include <clipp.h>
-
+#include <cxxopts.hpp>
 #include <iostream>
+#include <type_traits>
 #include <vector>
 #ifdef _WIN32
 #include <Windows.h>
@@ -24,6 +13,7 @@ struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
 #include <fmt/format.h>
 #include <optional>
 
+namespace beecli {
 /// <summary>
 /// A core rule is to use UTF-8 across entire application.
 /// Command line is one of the place that may produce non-UTF-8 strings.
@@ -33,8 +23,8 @@ struct result_of<F(ArgTypes...)> : std::invoke_result<F, ArgTypes...> {};
 /// For more on "encoding of argv"
 /// see https://stackoverflow.com/questions/5408730/what-is-the-encoding-of-argv .
 /// </summary>
-std::optional<std::vector<std::string>> getCommandLineArgsU8(int argc_,
-                                                             char *argv_[]) {
+std::optional<std::vector<std::string>>
+getCommandLineArgsU8(int argc_, const char *argv_[]) {
 #ifdef _WIN32
   // We first use the Windows API `CommandLineToArgvW` to convert to encoding of
   // "Wide char". And then continuously use the Windows API
@@ -77,8 +67,7 @@ std::optional<std::vector<std::string>> getCommandLineArgsU8(int argc_,
 #endif
 }
 
-namespace beecli {
-std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
+std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
   std::string inputFile;
   std::string outFile;
   std::string fbmDir;
@@ -90,113 +79,141 @@ std::optional<CliArgs> readCliArgs(int argc_, char *argv_[]) {
                                                        u8"fileDirName"};
 
   CliArgs cliArgs;
-  auto cli = (
 
-      clipp::value("input file", inputFile),
+  cxxopts::Options options{"FBX-glTF-conv",
+                           "This is a FBX to glTF file format converter."};
 
-      clipp::option("--out").doc(
-          "The output path to the .gltf or .glb file. Defaults to "
-          "`<working-directory>/<FBX-filename-basename>.gltf`") &
-          clipp::value("out-file", outFile),
+  options.add_options()("input-file", "Input file",
+                        cxxopts::value<std::string>());
 
-      clipp::option("--fbm-dir")
-              .doc("The directory to store the embedded media.") &
-          clipp::value("fbm-dir", fbmDir),
+  options.add_options()("fbm-dir", "The directory to store the embedded media.",
+                        cxxopts::value<std::string>());
+  options.add_options()(
+      "out",
+      "The output path to the .gltf or .glb file. Defaults to "
+      "`<working-directory>/<FBX-filename-basename>.gltf`",
+      cxxopts::value<std::string>());
+  options.add_options()("no-flip-v", "Do not flip V texture coordinates.",
+                        cxxopts::value<bool>()->default_value("false"));
+  options.add_options()(
+      "unit-conversion",
+      "How to perform unit converseion.\n"
+      "  - `geometry-level` Do unit conversion at "
+      "geometry "
+      "level.\n"
+      "  - `hierarchy-level` Do unit conversion at hierarchy "
+      "level.\n"
+      "  - `disabled` Disable unit conversion. This may cause the "
+      "generated glTF does't conform to glTF specification.",
+      cxxopts::value<std::string>()->default_value("geometry-level"));
 
-      clipp::option("--no-flip-v")
-          .set(cliArgs.convertOptions.noFlipV)
-          .doc("Do not flip V texture coordinates."),
+  options.add_options()("no-texture-resolution", "Do not resolve textures.",
+                        cxxopts::value<bool>()->default_value("false"));
 
-      clipp::option("--unit-conversion") &
-          clipp::value("unit-conversion", unitConversion)
-              .doc("How to perform unit converseion.\n"
-                   "  - `geometry-level`(default) Do unit conversion at "
-                   "geometry "
-                   "level.\n"
-                   "  - `hierarchy-level` Do unit conversion at hierarchy "
-                   "level.\n"
-                   "  - `disabled` Disable unit conversion. This may cause the "
-                   "generated glTF does't conform to glTF specification."),
+  options.add_options()(
+      "prefer-local-time-span",
+      "Prefer local time spans recorded in FBX file for animation "
+      "exporting.",
+      cxxopts::value<bool>()->default_value("true"));
 
-      clipp::option("--no-texture-resolution")
-          .set(cliArgs.convertOptions.textureResolution.disabled)
-          .doc("Do not resolve textures."),
+  options.add_options()(
+      "animation-bake-rate", "Animation bake rate(in FPS).",
+      cxxopts::value<decltype(cliArgs.convertOptions.animationBakeRate)>()
+          ->default_value("30"));
 
-      clipp::option("--texture-search-locations")
-              .doc("Texture search locations. These path shall be absolute "
-                   "path or relative path from input file's directory.") &
-          clipp::values("texture-search-locations", textureSearchLocations),
+  options.add_options()(
+      "texture-search-locations",
+      "Texture search locations. These path shall be absolute "
+      "path or relative path from input file's directory.",
+      cxxopts::value<std::vector<std::string>>());
 
-      clipp::option("--animation-bake-rate") &
-          clipp::value("animation-bake-rate",
-                       cliArgs.convertOptions.animationBakeRate)
-              .doc("Animation bake rate(in FPS)."),
+  options.add_options()("verbose", "Verbose output.",
+                        cxxopts::value<bool>()->default_value("false"));
+  options.add_options()(
+      "log-file",
+      "Specify the log file(logs are outputed as JSON). If not "
+      "specified, logs're printed to "
+      "console",
+      cxxopts::value<std::string>());
 
-      clipp::option("--log-file")
-              .doc("Specify the log file(logs are outputed as JSON). If not "
-                   "specified, logs're printed to "
-                   "console") &
-          clipp::value("log-file", logFile),
+  options.parse_positional("input-file");
 
-      clipp::option("--verbose")
-          .set(cliArgs.convertOptions.verbose)
-          .doc("Verbose output.")
+  std::vector<std::string> argStrings(args_.size());
+  std::transform(args_.begin(), args_.end(), argStrings.begin(),
+                 [](auto &p) { return p.data(); });
 
-  );
+  std::vector<char *> argsMutable(argStrings.size());
+  std::transform(argStrings.begin(), argStrings.end(), argsMutable.begin(),
+                 [](auto &p) { return p.data(); });
 
-  const auto commandLineArgsU8 = getCommandLineArgsU8(argc_, argv_);
-  if (!commandLineArgsU8) {
-    return {};
-  }
+  auto argc = static_cast<int>(argsMutable.size());
+  auto argv = argsMutable.data();
 
-  // clipp: only `parse(argc, argv, cli)` form will automaticly exclude the
-  // first arg We should manually do here. See
-  // https://github.com/muellan/clipp#parsing
-  bool ok = true;
-  if (commandLineArgsU8->empty()) {
-    ok = false;
-  } else if (auto parseResult = clipp::parse(commandLineArgsU8->begin() + 1,
-                                             commandLineArgsU8->end(), cli);
-             !parseResult) {
-    ok = false;
-    auto &cliErrOs = std::cerr;
+  try {
+    const auto cliParseResult = options.parse(argc, argv);
 
-    auto doc_label = [](const clipp::parameter &p) {
-      if (!p.flags().empty()) {
-        return p.flags().front();
-      }
-      if (!p.label().empty()) {
-        return p.label();
-      }
-      return clipp::doc_string{"<?>"};
-    };
-
-    for (const auto &cliError : parseResult) {
-      cliErrOs << "# " << cliError.index() << " [" << cliError.arg() << "] -> ";
-      const auto param = cliError.param();
-      if (!param) {
-        cliErrOs << "[unmapped]\n";
-      } else {
-        cliErrOs << doc_label(*param) << " \t";
-        if (cliError.repeat() > 0) {
-          cliErrOs << (cliError.bad_repeat() ? "[bad repeat " : "[repeat ")
-                   << cliError.repeat() << "]";
-        }
-        if (cliError.blocked()) {
-          cliErrOs << " [blocked]";
-        }
-        if (cliError.conflict()) {
-          cliErrOs << " [conflict]";
-        }
-        cliErrOs << '\n';
-      }
-      cliErrOs << '\n';
+    if (cliParseResult.count("help")) {
+      std::cout << options.help() << std::endl;
+      return {};
     }
-  }
 
-  if (!ok) {
-    std::cout << make_man_page(
-        cli, commandLineArgsU8->empty() ? "" : commandLineArgsU8->front());
+    if (cliParseResult.count("input-file")) {
+      inputFile = cliParseResult["input-file"].as<std::string>();
+    }
+
+    if (cliParseResult.count("fbm-dir")) {
+      fbmDir = cliParseResult["fbm-dir"].as<std::string>();
+    }
+
+    if (cliParseResult.count("out")) {
+      outFile = cliParseResult["out"].as<std::string>();
+    }
+
+    if (cliParseResult.count("no-flip-v")) {
+      cliArgs.convertOptions.noFlipV = cliParseResult["no-flip-v"].as<bool>();
+    }
+
+    if (cliParseResult.count("unit-conversion")) {
+      unitConversion = cliParseResult["unit-conversion"].as<std::string>();
+    }
+
+    if (cliParseResult.count("no-texture-resolution")) {
+      cliArgs.convertOptions.textureResolution.disabled =
+          cliParseResult["no-texture-resolution"].as<bool>();
+    }
+
+    if (cliParseResult.count("texture-search-locations")) {
+      textureSearchLocations = cliParseResult["texture-search-locations"]
+                                   .as<std::vector<std::string>>();
+    }
+
+    if (cliParseResult.count("prefer-local-time-span")) {
+      cliArgs.convertOptions.prefer_local_time_span =
+          cliParseResult["prefer-local-time-span"].as<bool>();
+    }
+
+    if (cliParseResult.count("animation-bake-rate")) {
+      cliArgs.convertOptions.animationBakeRate =
+          cliParseResult["animation-bake-rate"]
+              .as<decltype(cliArgs.convertOptions.animationBakeRate)>();
+    }
+
+    if (cliParseResult.count("verbose")) {
+      cliArgs.convertOptions.verbose = cliParseResult["verbose"].as<bool>();
+    }
+
+    if (cliParseResult.count("log-file")) {
+      logFile = cliParseResult["log-file"].as<std::string>();
+    }
+
+    if (inputFile.empty()) {
+      std::cerr << "Input file not specified." << std::endl;
+      std::cerr << options.help() << std::endl;
+      return {};
+    }
+  } catch (const cxxopts::OptionException &ex_) {
+    std::cerr << ex_.what() << "\n";
+    std::cout << options.help() << std::endl;
     return {};
   }
 
