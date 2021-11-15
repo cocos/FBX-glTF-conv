@@ -441,45 +441,62 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
       scale = localTransform.GetS();
     }
 
-    const auto mayBeOptOut = [&]() {
+    const auto lastFrameMayBeOptOut = [&]() {
       // We have to admit that we at least get 3 frames
       // even they are linear at all.
-      if (iFrame <= 1 || iFrame == nFrames - 1) {
+      if (times.size() < 2) {
         return false;
       }
-      const auto iMid = times.size() - 1;
-      const auto iPrev = times.size() - 2;
-      const auto dPrevTime = time - times[iPrev];
-      if (isApproximatelyEqual(dPrevTime, 0.0)) {
+
+      const auto iLast = times.size() - 1;
+      const auto iLastLast = times.size() - 2;
+      const auto lastTime = times[iLast];
+      const auto lastLastTime = times[iLastLast];
+      const auto dTime = time - lastTime;
+      if (isApproximatelyEqual(dTime, 0.0)) {
         // If current frame time is indistinguishable from previous frame time,
         // we can omit it.
         return true;
       }
-      const auto rate = (times[iMid] - times[iPrev]) / dPrevTime;
+      const auto rate = (lastTime - lastLastTime) / dTime;
       if (isApproximatelyEqual(rate, 0.0)) {
         // If two previous frame times are indistinguishable, we shall not omit
         // current frame.
         return false;
       }
       if (isTranslationAnimated &&
-          !isApproximatelyEqual<3>(lerp(translations[iPrev], translation, rate),
-                                   translations[iMid])) {
+          !isApproximatelyEqual<3>(
+              lerp(translations[iLastLast], translation, rate),
+              translations[iLast])) {
         return false;
       }
       if (isRotationAnimated &&
-          !isApproximatelyEqual<4>(slerp(rotations[iPrev], rotation, rate),
-                                   rotations[iMid])) {
+          !isApproximatelyEqual<4>(slerp(rotations[iLastLast], rotation, rate),
+                                   rotations[iLast])) {
         return false;
       }
       if (isScaleAnimated &&
-          !isApproximatelyEqual<3>(lerp(scales[iPrev], scale, rate),
-                                   scales[iMid])) {
+          !isApproximatelyEqual<3>(lerp(scales[iLastLast], scale, rate),
+                                   scales[iLast])) {
         return false;
       }
       return true;
     };
 
-    if (!mayBeOptOut()) {
+    const auto replaceLastFrame = lastFrameMayBeOptOut();
+    if (replaceLastFrame) {
+      assert(!times.empty());
+      times.back() = time;
+      if (isTranslationAnimated) {
+        translations.back() = translation;
+      }
+      if (isRotationAnimated) {
+        rotations.back() = rotation;
+      }
+      if (isScaleAnimated) {
+        scales.back() = scale;
+      }
+    } else {
       times.push_back(time);
       if (isTranslationAnimated) {
         translations.push_back(translation);
