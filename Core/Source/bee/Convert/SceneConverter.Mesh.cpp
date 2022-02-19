@@ -87,7 +87,7 @@ SceneConverter::_convertNodeMeshes(
         *fbxMesh, meshName, vertexTransformX, normalTransformX, fbxShapes,
         skinInfluenceChannels, materialUsage);
 
-    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh)) {
+    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh, fbx_node_)) {
       if (auto glTFMaterialIndex =
               _convertMaterial(*fbxMaterial, materialUsage)) {
         glTFPrimitive.material = *glTFMaterialIndex;
@@ -668,7 +668,8 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
 }
 
 fbxsdk::FbxSurfaceMaterial *
-SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
+SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_,
+                                      fbxsdk::FbxNode &fbx_node_) {
   const auto nElementMaterialCount = fbx_mesh_.GetElementMaterialCount();
   if (!nElementMaterialCount) {
     return nullptr;
@@ -704,13 +705,23 @@ SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
            u8"since we splited it previously.");
     }
 
+    const auto nodeMaterialIndexAccessor =
+        makeLayerElementMaterialAccessor(*elementMaterial);
+
     FbxLayerElementAccessParams params;
     params.controlPointIndex = 0;
     params.polygonIndex = 0;
     params.polygonVertexIndex = 0;
+    const auto nodeMaterialIndex = nodeMaterialIndexAccessor(params);
 
-    auto materialIndexAccessor = makeFbxLayerElementAccessor(*elementMaterial);
-    auto material = materialIndexAccessor(params);
+    // It maybe invalid, see `makeLayerElementMaterialAccessor`.
+    if (nodeMaterialIndex < 0) {
+      _log(Logger::Level::verbose,
+           u8"We can not get the associated material for some reasons.");
+      continue;
+    }
+
+    auto material = fbx_mesh_.GetNode()->GetMaterial(nodeMaterialIndex);
 
     return material;
   }
