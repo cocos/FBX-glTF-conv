@@ -14,6 +14,7 @@
     "range-v3",
     "cxxopts",
     "glm",
-    "doctest"
+    "doctest",
+    "utfcpp"
   ]
 }

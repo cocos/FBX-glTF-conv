@@ -1,6 +1,7 @@
 
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/ObjectDestroyer.h>
+#include <bee/Convert/fbxsdk/String.h>
 #include <bee/Converter.h>
 #include <bee/polyfills/filesystem.h>
 #include <bee/polyfills/json.h>
@@ -42,9 +43,10 @@ public:
 
   Json BEE_API convert(std::u8string_view file_,
                        const ConvertOptions &options_) {
-    auto fbxScene = _import(file_, options_);
-    FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
     GLTFBuilder glTFBuilder;
+
+    auto fbxScene = _import(file_, options_, glTFBuilder);
+    FbxObjectDestroyer fbxSceneDestroyer{fbxScene};
     SceneConverter sceneConverter{*_fbxManager, *fbxScene, options_, file_,
                                   glTFBuilder};
     sceneConverter.convert();
@@ -100,7 +102,9 @@ public:
 private:
   fbxsdk::FbxManager *_fbxManager = nullptr;
 
-  FbxScene *_import(std::u8string_view file_, const ConvertOptions &options_) {
+  FbxScene *_import(std::u8string_view file_,
+                    const ConvertOptions &options_,
+                    GLTFBuilder &glTFBuilder_) {
     auto ioSettings = fbxsdk::FbxIOSettings::Create(_fbxManager, IOSROOT);
     _fbxManager->SetIOSettings(ioSettings);
 
@@ -149,6 +153,29 @@ private:
                                                 true);
       fbxImporter->GetIOSettings()->SetBoolProp(IMP_FBX_EXTRACT_EMBEDDED_DATA,
                                                 true);
+    }
+
+    if (options_.export_fbx_file_header_info) {
+      const auto fbxFileHeaderInfo = fbxImporter->GetFileHeaderInfo();
+
+      auto &extensionsAndExtras =
+          glTFBuilder_.get(&fx::gltf::Document::extensionsAndExtras);
+      auto &glTFFBXFileHeaderInfo =
+          extensionsAndExtras["extras"]["FBX-glTF-conv"]["fbxFileHeaderInfo"];
+      glTFFBXFileHeaderInfo["creator"] =
+          fbx_string_to_utf8_checked(fbxFileHeaderInfo->mCreator);
+      if (fbxFileHeaderInfo->mCreationTimeStampPresent) {
+        const auto creationTimeStamp = fbxFileHeaderInfo->mCreationTimeStamp;
+        glTFFBXFileHeaderInfo["creationTimeStamp"] = {
+            {"year", creationTimeStamp.mYear},
+            {"month", creationTimeStamp.mMonth},
+            {"day", creationTimeStamp.mDay},
+            {"hour", creationTimeStamp.mHour},
+            {"minute", creationTimeStamp.mMinute},
+            {"second", creationTimeStamp.mSecond},
+            {"millisecond", creationTimeStamp.mMillisecond},
+        };
+      }
     }
 
     if (options_.verbose && options_.logger) {
