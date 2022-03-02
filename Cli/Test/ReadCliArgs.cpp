@@ -52,6 +52,7 @@ TEST_CASE("Read CLI arguments") {
     CHECK_EQ(convertOptions->convertOptions.textureResolution.disabled, false);
     CHECK_EQ(convertOptions->convertOptions.unitConversion,
              bee::ConvertOptions::UnitConversion::geometryLevel);
+    CHECK_EQ(convertOptions->convertOptions.export_fbx_file_header_info, false);
   }
 
   {// Input file
@@ -161,6 +162,20 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
   CHECK_EQ(read_cli_args_with_dummy_and("--animation-bake-rate=30"sv)
                ->convertOptions.animationBakeRate,
            30);
+}
+
+{ // --export-fbx-file-header-info
+  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info"sv)
+               ->convertOptions.export_fbx_file_header_info,
+           true);
+
+  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info=true"sv)
+               ->convertOptions.export_fbx_file_header_info,
+           true);
+
+  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info=false"sv)
+               ->convertOptions.export_fbx_file_header_info,
+           false);
 }
 
 { // Log file

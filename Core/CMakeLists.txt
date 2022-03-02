@@ -27,6 +27,8 @@ set (BeeCoreSource
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/GLTFSamplerHash.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/FbxMeshVertexLayout.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/DirectSpreader.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/String.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/String.cpp"
     )
 
 add_library (BeeCore SHARED ${BeeCoreSource})
@@ -112,6 +114,9 @@ target_include_directories(BeeCore PRIVATE ${CPPCODEC_INCLUDE_DIRS})
 
 find_package(range-v3 CONFIG REQUIRED)
 target_link_libraries(BeeCore PRIVATE range-v3)
+
+find_package(utf8cpp CONFIG REQUIRED)
+target_link_libraries(BeeCore PRIVATE utf8cpp)
 
 install (TARGETS BeeCore DESTINATION "bin")
 install (FILES $<TARGET_LINKER_FILE:BeeCore> DESTINATION "lib" OPTIONAL)
