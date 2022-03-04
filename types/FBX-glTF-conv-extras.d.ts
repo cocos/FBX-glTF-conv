@@ -48,7 +48,3 @@ export interface DocumentExtra {
         };
     };
 }
-
-export interface MaterialExtra {
-    
-}

@@ -47,6 +47,7 @@ jobs:
           release_name: ${{steps.get_release_info.outputs.release_name}}
           draft: true
           prerelease: true
+
   release_windows_job:
     name: Release Windows
     runs-on: windows-latest
@@ -109,6 +110,42 @@ jobs:
       - id: build
         name: Build
         run: CI/GitHubBuild.ps1 -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
+        shell: pwsh
+      - id: upload-release-asset
+        name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          asset_path: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_name: ${{ steps.get_this_release_info.outputs.artifact_path }}
+          asset_content_type: application/zip
+
+  release_types_job:
+    name: Release TypeScript Declaration Files
+    runs-on: windows-latest
+    needs: get_release_info_job
+    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
+    steps:
+      - name: Print Debug Info
+        shell: pwsh
+        run: |
+          Write-Host @"
+          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
+          Version: ${{ needs.get_release_info_job.outputs.version }}
+          Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
+          "@
+      - uses: actions/checkout@v2
+      - id: get_this_release_info
+        shell: pwsh
+        run: |
+          #Requires -Version "6.1"
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-types.zip"
+          Write-Output "::set-output name=artifact_path::$artifactPath"
+      - id: build
+        name: Build
+        run: Compress-Archive -Path "types\*" -DestinationPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
         shell: pwsh
       - id: upload-release-asset
         name: Upload Release Asset
