@@ -346,7 +346,7 @@ SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
 
   const auto exportMaterialProperty = [&](const auto &fbx_property_,
                                           std::string_view as_) {
-    using ValueType = typename std::decay_t<decltype(fbx_property_)>::ValueType;
+    using ValueType = std::decay_t<decltype(fbx_property_)>::ValueType;
 
     // const auto hasDefaultValue = !fbx_property_.Modified();
     ///*const auto hasDefaultValue = fbxsdk::FbxProperty::HasDefaultValue(
