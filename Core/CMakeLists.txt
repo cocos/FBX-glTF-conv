@@ -29,6 +29,10 @@ set (BeeCoreSource
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/DirectSpreader.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/String.h"
     "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/String.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/SplitMeshByMaterial.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/SplitMeshByMaterial.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/MeshInstancingKey.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Source/bee/Convert/fbxsdk/MeshInstancingKey.cpp"
     )
 
 add_library (BeeCore SHARED ${BeeCoreSource})
