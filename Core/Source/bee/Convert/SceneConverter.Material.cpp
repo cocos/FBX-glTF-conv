@@ -367,7 +367,7 @@ SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
     }
 
     const auto fbxTexture =
-        fbx_property_.template GetSrcObject<fbxsdk::FbxFileTexture>();
+        fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
     if (fbxTexture) {
       const auto glTFTexture = _convertFileTexture(*fbxTexture);
       if (glTFTexture) {
