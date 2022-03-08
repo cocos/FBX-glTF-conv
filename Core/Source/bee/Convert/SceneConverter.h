@@ -384,12 +384,19 @@ private:
                    const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
+  _exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                     const MaterialUsage &material_usage_);
+
+  std::optional<GLTFBuilder::XXIndex>
   _convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_,
                           const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertUnknownMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
                           const MaterialUsage &material_usage_);
+
+  Json _dumpMaterialProperties(const fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                               const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
   _convertStanardMaterialProperties(fbxsdk::FbxSurfaceMaterial &fbx_material_,
