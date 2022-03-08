@@ -1,7 +1,6 @@
 
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
-#include <bee/Convert/fbxsdk/String.h>
 #include <fmt/format.h>
 #include <glm/gtx/compatibility.hpp>
 #include <glm/vec3.hpp>
@@ -315,9 +314,6 @@ SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
   if (r == _materialConvertCache.end()) {
     const auto glTFMaterialIndex =
         [&]() -> std::optional<GLTFBuilder::XXIndex> {
-      if (_options.export_raw_materials) {
-        return _exportRawMaterial(fbx_material_, material_usage_);
-      }
       if (fbx_material_.Is<fbxsdk::FbxSurfaceLambert>()) {
         return _convertLambertMaterial(
             static_cast<fbxsdk::FbxSurfaceLambert &>(fbx_material_),
@@ -329,111 +325,6 @@ SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
     r = _materialConvertCache.emplace(convertKey, glTFMaterialIndex).first;
   }
   return r->second;
-}
-
-std::optional<GLTFBuilder::XXIndex>
-SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
-                                   const MaterialUsage &material_usage_) {
-  const auto materialName = std::string{fbx_material_.GetName()};
-
-  fx::gltf::Material glTFMaterial;
-  glTFMaterial.name = materialName;
-
-  auto &rawExtra =
-      glTFMaterial.extensionsAndExtras["extras"]["FBX-glTF-conv"]["raw"];
-
-  auto &propertyRoot = rawExtra["properties"];
-
-  const auto exportMaterialProperty = [&](const auto &fbx_property_,
-                                          std::string_view as_) {
-    using ValueType = std::decay_t<decltype(fbx_property_)>::ValueType;
-
-    // const auto hasDefaultValue = !fbx_property_.Modified();
-    ///*const auto hasDefaultValue = fbxsdk::FbxProperty::HasDefaultValue(
-    //    const_cast<std::decay_t<decltype(fbx_property_)> &>(fbx_property_));*/
-    // if (hasDefaultValue) {
-    //  return;
-    //}
-
-    Json json;
-
-    if constexpr (std::is_same_v<ValueType, fbxsdk::FbxDouble>) {
-      json["value"] = fbx_property_.Get();
-    } else if constexpr (std::is_same_v<ValueType, fbxsdk::FbxDouble3>) {
-      const auto v = fbx_property_.Get();
-      json["value"] = Json::array({v[0], v[1], v[2]});
-    } else {
-      static_assert(false, "Unsupported material value type.");
-    }
-
-    const auto fbxTexture =
-        fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
-    if (fbxTexture) {
-      const auto glTFTexture = _convertFileTexture(*fbxTexture);
-      if (glTFTexture) {
-        json["texture"] = *glTFTexture;
-      }
-    }
-
-    propertyRoot[std::string{as_}] = json;
-  };
-
-  const auto exportRawSurface =
-      [&](const fbxsdk::FbxSurfaceMaterial &fbx_material_) {
-        propertyRoot["shadingModel"] =
-            fbx_string_to_utf8_checked(fbx_material_.ShadingModel.Get());
-      };
-
-  const auto exportRawLambert =
-      [&](const fbxsdk::FbxSurfaceLambert &fbx_material_) {
-        exportRawSurface(fbx_material_);
-        exportMaterialProperty(fbx_material_.Emissive, "emissive");
-        exportMaterialProperty(fbx_material_.EmissiveFactor, "emissiveFactor");
-        exportMaterialProperty(fbx_material_.Ambient, "ambient");
-        exportMaterialProperty(fbx_material_.EmissiveFactor, "ambientFactor");
-        exportMaterialProperty(fbx_material_.Diffuse, "diffuse");
-        exportMaterialProperty(fbx_material_.DiffuseFactor, "diffuseFactor");
-        exportMaterialProperty(fbx_material_.NormalMap, "normalMap");
-        exportMaterialProperty(fbx_material_.Bump, "bump");
-        exportMaterialProperty(fbx_material_.BumpFactor, "bumpFactor");
-        exportMaterialProperty(fbx_material_.TransparentColor,
-                               "transparentColor");
-        exportMaterialProperty(fbx_material_.TransparencyFactor,
-                               "transparencyFactor");
-        exportMaterialProperty(fbx_material_.DisplacementColor,
-                               "displacementColor");
-        exportMaterialProperty(fbx_material_.DisplacementFactor,
-                               "displacementFactor");
-        exportMaterialProperty(fbx_material_.VectorDisplacementColor,
-                               "vectorDisplacementColor");
-        exportMaterialProperty(fbx_material_.VectorDisplacementFactor,
-                               "vectorDisplacementFactor");
-      };
-
-  const auto exportRawPhong =
-      [&](const fbxsdk::FbxSurfacePhong &fbx_material_) {
-        exportRawLambert(fbx_material_);
-        exportMaterialProperty(fbx_material_.Specular, "specular");
-        exportMaterialProperty(fbx_material_.SpecularFactor, "specularFactor");
-        exportMaterialProperty(fbx_material_.Shininess, "shininess");
-        exportMaterialProperty(fbx_material_.Reflection, "reflection");
-        exportMaterialProperty(fbx_material_.ReflectionFactor,
-                               "reflectionFactor");
-      };
-
-  if (fbx_material_.Is<fbxsdk::FbxSurfacePhong>()) {
-    rawExtra["type"] = "phong";
-    exportRawPhong(static_cast<fbxsdk::FbxSurfacePhong &>(fbx_material_));
-  } else if (fbx_material_.Is<fbxsdk::FbxSurfaceLambert>()) {
-    rawExtra["type"] = "lambert";
-    exportRawLambert(static_cast<fbxsdk::FbxSurfaceLambert &>(fbx_material_));
-  } else {
-    propertyRoot = _dumpMaterialProperties(fbx_material_, material_usage_);
-  }
-
-  const auto glTFMaterailIndex =
-      _glTFBuilder.add(&fx::gltf::Document::materials, std::move(glTFMaterial));
-  return glTFMaterailIndex;
 }
 
 std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
@@ -623,16 +514,6 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertUnknownMaterial(
     return {};
   }
 
-  _log(Logger::Level::error,
-       fmt::format("Failed to convert unknown material: {}",
-                   fbx_string_to_utf8_checked(
-                       fbx_material_.GetNameWithNameSpacePrefix())));
-  return {};
-}
-
-Json SceneConverter::_dumpMaterialProperties(
-    const fbxsdk::FbxSurfaceMaterial &fbx_material_,
-    const MaterialUsage &material_usage_) {
   std::function<std::optional<Json>(const fbxsdk::FbxProperty &)> dumpProperty;
 
   const auto dumpCompoundProperty =
@@ -676,7 +557,8 @@ Json SceneConverter::_dumpMaterialProperties(
       return fbx_property_.Get<fbxsdk::FbxBool>();
     } else if (propertyDataType == fbxsdk::FbxStringDT) {
       const auto value = fbx_property_.Get<fbxsdk::FbxString>();
-      return fbx_string_to_utf8_checked(value);
+      // TODO: process NON-UTF8 strings
+      return static_cast<const char *>(value);
     } else if (propertyDataType == fbxsdk::FbxReferenceDT) {
       const auto srcObjectCount = fbx_property_.GetSrcObjectCount();
       if (srcObjectCount == 0) {
@@ -710,6 +592,17 @@ Json SceneConverter::_dumpMaterialProperties(
     }
   };
 
-  return dumpCompoundProperty(fbx_material_.RootProperty).value_or(Json{});
+  auto &glTFMaterial =
+      _glTFBuilder.get(&fx::gltf::Document::materials)[*standard];
+  auto &originalMaterial =
+      glTFMaterial
+          .extensionsAndExtras["extras"]["FBX-glTF-conv"]["originalMaterial"];
+
+  const auto properties = dumpCompoundProperty(fbx_material_.RootProperty);
+  if (properties) {
+    originalMaterial["properties"] = *properties;
+  }
+
+  return standard;
 }
 } // namespace bee

@@ -129,7 +129,7 @@ struct ConvertOptions {
 
   bool export_fbx_file_header_info = false;
 
-  bool export_raw_materials = false;
+  bool export_orignal_material = false;
 };
 
 Json BEE_API convert(std::u8string_view file_, const ConvertOptions &options_);

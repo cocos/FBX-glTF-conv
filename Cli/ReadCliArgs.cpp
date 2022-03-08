@@ -131,9 +131,6 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
                         "Export FBX file header info.",
                         cxxopts::value<bool>()->default_value("false"));
 
-  options.add_options()("export-raw-materials", "Export raw materials.",
-                        cxxopts::value<bool>()->default_value("false"));
-
   options.add_options()("verbose", "Verbose output.",
                         cxxopts::value<bool>()->default_value("false"));
   options.add_options()(
@@ -208,11 +205,6 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
     if (cliParseResult.count("export-fbx-file-header-info")) {
       cliArgs.convertOptions.export_fbx_file_header_info =
           cliParseResult["export-fbx-file-header-info"].as<bool>();
-    }
-
-    if (cliParseResult.count("export-raw-materials")) {
-      cliArgs.convertOptions.export_raw_materials =
-          cliParseResult["export-raw-materials"].as<bool>();
     }
 
     if (cliParseResult.count("verbose")) {

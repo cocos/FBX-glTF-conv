@@ -53,7 +53,6 @@ TEST_CASE("Read CLI arguments") {
     CHECK_EQ(convertOptions->convertOptions.unitConversion,
              bee::ConvertOptions::UnitConversion::geometryLevel);
     CHECK_EQ(convertOptions->convertOptions.export_fbx_file_header_info, false);
-    CHECK_EQ(convertOptions->convertOptions.export_raw_materials, false);
   }
 
   {// Input file
@@ -176,20 +175,6 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
 
   CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info=false"sv)
                ->convertOptions.export_fbx_file_header_info,
-           false);
-}
-
-{ // --export-raw-materials
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials"sv)
-               ->convertOptions.export_raw_materials,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials=true"sv)
-               ->convertOptions.export_raw_materials,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials=false"sv)
-               ->convertOptions.export_raw_materials,
            false);
 }
 
