@@ -1,5 +1,4 @@
 
-#include "./fbxsdk/String.h"
 #include <bee/Convert/SceneConverter.h>
 #include <bee/polyfills/filesystem.h>
 #include <cppcodec/base64_default_rfc4648.hpp>
@@ -60,31 +59,17 @@ glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
 namespace bee {
 std::optional<fx::gltf::Material::Texture>
 SceneConverter::_convertTextureProperty(
-    const fbxsdk::FbxProperty &fbx_property_,
+    fbxsdk::FbxProperty &fbx_property_,
     const TextureContext &texture_context_) {
   const auto fbxFileTexture =
       fbx_property_.GetSrcObject<fbxsdk::FbxFileTexture>();
   if (fbxFileTexture) {
     return _convertFileTextureShared(*fbxFileTexture, texture_context_);
   } else {
-    const auto fbxLayeredTexture =
-        fbx_property_.GetSrcObject<fbxsdk::FbxLayeredTexture>();
-    if (fbxLayeredTexture) {
+    const auto fbxTexture = fbx_property_.GetSrcObject<fbxsdk::FbxTexture>();
+    if (fbxTexture) {
       _log(Logger::Level::verbose,
-           fmt::format("The property {} is connected with a layered texture, "
-                       "which is not supported "
-                       "currently. It will be ignored.",
-                       fbx_string_to_utf8_checked(
-                           fbx_property_.GetHierarchicalName())));
-    } else {
-      const auto fbxTexture = fbx_property_.GetSrcObject<fbxsdk::FbxTexture>();
-      if (fbxTexture) {
-        _log(Logger::Level::verbose,
-             fmt::format("The property {} is connected with an unknown type "
-                         "texture. It will be ignored.",
-                         fbx_string_to_utf8_checked(
-                             fbx_property_.GetHierarchicalName())));
-      }
+           u8"The property is texture but is not file texture. It's ignored.");
     }
     return {};
   }
@@ -145,7 +130,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertFileTexture(
 
 std::optional<fx::gltf::Material::NormalTexture>
 SceneConverter::_convertTexturePropertyAsNormalTexture(
-    const fbxsdk::FbxProperty &fbx_property_,
+    fbxsdk::FbxProperty &fbx_property_,
     const TextureContext &texture_context_) {
   const auto materialTexture =
       _convertTextureProperty(fbx_property_, texture_context_);

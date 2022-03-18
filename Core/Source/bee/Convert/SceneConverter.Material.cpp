@@ -363,15 +363,16 @@ SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
       const auto v = fbx_property_.Get();
       json["value"] = Json::array({v[0], v[1], v[2]});
     } else {
-      // https://stackoverflow.com/questions/38304847/constexpr-if-and-static-assert
-      static_assert(!std::is_same_v<ValueType, ValueType>,
-                    "Unsupported material value type.");
+      static_assert(false, "Unsupported material value type.");
     }
 
-    const auto glTFTexture =
-        _convertTextureProperty(fbx_property_, material_usage_.texture_context);
-    if (glTFTexture) {
-      json["texture"] = glTFTexture->index;
+    const auto fbxTexture =
+        fbx_property_.template GetSrcObject<fbxsdk::FbxFileTexture>();
+    if (fbxTexture) {
+      const auto glTFTexture = _convertFileTexture(*fbxTexture);
+      if (glTFTexture) {
+        json["texture"] = *glTFTexture;
+      }
     }
 
     propertyRoot[std::string{as_}] = json;

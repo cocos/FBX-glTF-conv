@@ -403,7 +403,7 @@ private:
                                     const MaterialUsage &material_usage_);
 
   std::optional<fx::gltf::Material::Texture>
-  _convertTextureProperty(const fbxsdk::FbxProperty &fbx_property_,
+  _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_,
                           const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::Texture>
@@ -415,7 +415,7 @@ private:
 
   std::optional<fx::gltf::Material::NormalTexture>
   _convertTexturePropertyAsNormalTexture(
-      const fbxsdk::FbxProperty &fbx_property_,
+      fbxsdk::FbxProperty &fbx_property_,
       const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::NormalTexture>
