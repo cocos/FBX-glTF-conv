@@ -1,4 +1,5 @@
 
+#include "./fbxsdk/String.h"
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
@@ -189,6 +190,34 @@ SceneConverter::_convertFileName(const char *fbx_file_name_) {
 
 GLTFBuilder::XXIndex
 SceneConverter::_convertScene(fbxsdk::FbxScene &fbx_scene_) {
+  if (_options.export_fbx_file_header_info) {
+    const auto &fbxSceneInfo = *fbx_scene_.GetSceneInfo();
+
+    auto &extensionsAndExtras =
+        _glTFBuilder.get(&fx::gltf::Document::extensionsAndExtras);
+    auto &sceneInfo = extensionsAndExtras["extras"]["FBX-glTF-conv"]
+                                         ["fbxFileHeaderInfo"]["sceneInfo"];
+
+    sceneInfo["url"] = fbx_string_to_utf8_checked(fbxSceneInfo.Url.Get());
+
+    auto &original = sceneInfo["original"];
+    original["applicationVendor"] = fbx_string_to_utf8_checked(
+        fbxSceneInfo.Original_ApplicationVendor.Get());
+    original["applicationName"] =
+        fbx_string_to_utf8_checked(fbxSceneInfo.Original_ApplicationName.Get());
+    original["applicationVersion"] = fbx_string_to_utf8_checked(
+        fbxSceneInfo.Original_ApplicationVersion.Get());
+    original["fileName"] =
+        fbx_string_to_utf8_checked(fbxSceneInfo.Original_FileName.Get());
+
+    sceneInfo["title"] = fbx_string_to_utf8_checked(fbxSceneInfo.mTitle);
+    sceneInfo["subject"] = fbx_string_to_utf8_checked(fbxSceneInfo.mSubject);
+    sceneInfo["author"] = fbx_string_to_utf8_checked(fbxSceneInfo.mAuthor);
+    sceneInfo["keywords"] = fbx_string_to_utf8_checked(fbxSceneInfo.mKeywords);
+    sceneInfo["revision"] = fbx_string_to_utf8_checked(fbxSceneInfo.mRevision);
+    sceneInfo["comment"] = fbx_string_to_utf8_checked(fbxSceneInfo.mComment);
+  }
+
   auto sceneName = _convertName(fbx_scene_.GetName());
 
   fx::gltf::Scene glTFScene;
