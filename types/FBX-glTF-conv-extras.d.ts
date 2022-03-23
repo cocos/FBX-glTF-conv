@@ -46,6 +46,8 @@ export interface DocumentExtra {
              */
             millisecond: number;
         };
+
+        sceneInfo: FbxSceneInfo;
     };
 }
 
@@ -104,3 +106,19 @@ export type FbxMaterialProperty<T> = {
  * Index to the glTF texture array.
  */
 export type TextureReference = number;
+
+export interface FbxSceneInfo {
+    url: string;
+    original: {
+        applicationVendor: string;
+        applicationName: string;
+        applicationVersion: string;
+        fileName: string;
+    };
+    title: string;
+    subject: string;
+    author: string;
+    keywords: string;
+    revision: string;
+    comment: string;
+}
