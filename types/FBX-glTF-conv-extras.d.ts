@@ -46,5 +46,23 @@ export interface DocumentExtra {
              */
             millisecond: number;
         };
+
+        sceneInfo: FbxSceneInfo;
     };
+}
+
+export interface FbxSceneInfo {
+    url: string;
+    original: {
+        applicationVendor: string;
+        applicationName: string;
+        applicationVersion: string;
+        fileName: string;
+    };
+    title: string;
+    subject: string;
+    author: string;
+    keywords: string;
+    revision: string;
+    comment: string;
 }
