@@ -260,7 +260,8 @@ void SceneConverter::_extractWeightsAnimation(
 
   auto &fbxMeshes = nodeBumpMeta.meshes->meshes;
   if (!fbxMeshes.empty()) {
-    std::vector<MorphAnimation> morphAnimations{fbxMeshes.size()};
+    std::vector<std::optional<MorphAnimation>> morphAnimations{
+        fbxMeshes.size()};
     for (decltype(fbxMeshes.size()) iMesh = 0; iMesh < fbxMeshes.size();
          ++iMesh) {
       const auto &blendShapeData = blendShapeMeta->blendShapeDatas[iMesh];
@@ -269,13 +270,24 @@ void SceneConverter::_extractWeightsAnimation(
           anim_range_);
     }
 
-    if (const auto &first = morphAnimations.front(); std::all_of(
-            std::next(morphAnimations.begin()), morphAnimations.end(),
-            [&first](const MorphAnimation &anim_) {
-              return anim_.times == first.times && anim_.values == first.values;
-            })) {
-      _writeMorphAnimtion(glTF_animation_, first, nodeBumpMeta.glTFNodeIndex,
-                          fbx_node_);
+    if (const auto &first = morphAnimations.front();
+        // They should all have or have not morph animation
+        std::all_of(std::next(morphAnimations.begin()), morphAnimations.end(),
+                    [&first](const std::optional<MorphAnimation> &anim_) {
+                      return anim_.has_value() == first.has_value();
+                    }) &&
+        // If they all have morph animation, their morph animation should be
+        // compared to equal
+        (!first.has_value() ||
+         std::all_of(std::next(morphAnimations.begin()), morphAnimations.end(),
+                     [&first](const std::optional<MorphAnimation> &anim_) {
+                       return anim_->times == first->times &&
+                              anim_->values == first->values;
+                     }))) {
+      if (first) {
+        _writeMorphAnimtion(glTF_animation_, *first, nodeBumpMeta.glTFNodeIndex,
+                            fbx_node_);
+      }
     } else {
       _log(Logger::Level::warning,
            fmt::format("Sub-meshes use different morph animation. We can't "
@@ -316,12 +328,28 @@ void SceneConverter::_writeMorphAnimtion(fx::gltf::Animation &glTF_animation_,
   glTF_animation_.channels.push_back(channel);
 }
 
-SceneConverter::MorphAnimation SceneConverter::_extractWeightsAnimation(
+std::optional<SceneConverter::MorphAnimation>
+SceneConverter::_extractWeightsAnimation(
     fbxsdk::FbxAnimLayer &fbx_anim_layer_,
     const fbxsdk::FbxNode &fbx_node_,
     fbxsdk::FbxMesh &fbx_mesh_,
     const FbxBlendShapeData &blend_shape_data_,
     const AnimRange &anim_range_) {
+  // Zero check
+  bool hasWeightAnimation = false;
+  for (const auto &[blendShapeIndex, blendShapeChannelIndex, name,
+                    deformPercent, targetShapes] : blend_shape_data_.channels) {
+    const auto shapeChannel = fbx_mesh_.GetShapeChannel(
+        blendShapeIndex, blendShapeChannelIndex, &fbx_anim_layer_);
+    if (shapeChannel) {
+      hasWeightAnimation = true;
+      break;
+    }
+  }
+  if (!hasWeightAnimation) {
+    return std::nullopt;
+  }
+
   using WeightType = decltype(MorphAnimation::values)::value_type;
 
   MorphAnimation morphAnimation;

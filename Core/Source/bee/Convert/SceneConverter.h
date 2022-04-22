@@ -465,7 +465,7 @@ private:
                            std::uint32_t glTF_node_index_,
                            const fbxsdk::FbxNode &fbx_node_);
 
-  MorphAnimation
+  std::optional<MorphAnimation>
   _extractWeightsAnimation(fbxsdk::FbxAnimLayer &fbx_anim_layer_,
                            const fbxsdk::FbxNode &fbx_node_,
                            fbxsdk::FbxMesh &fbx_mesh_,
