@@ -384,6 +384,10 @@ private:
                    const MaterialUsage &material_usage_);
 
   std::optional<GLTFBuilder::XXIndex>
+  _exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                     const MaterialUsage &material_usage_);
+
+  std::optional<GLTFBuilder::XXIndex>
   _convertLambertMaterial(fbxsdk::FbxSurfaceLambert &fbx_material_,
                           const MaterialUsage &material_usage_);
 
@@ -391,12 +395,15 @@ private:
   _convertUnknownMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
                           const MaterialUsage &material_usage_);
 
+  Json _dumpMaterialProperties(const fbxsdk::FbxSurfaceMaterial &fbx_material_,
+                               const MaterialUsage &material_usage_);
+
   std::optional<GLTFBuilder::XXIndex>
   _convertStanardMaterialProperties(fbxsdk::FbxSurfaceMaterial &fbx_material_,
                                     const MaterialUsage &material_usage_);
 
   std::optional<fx::gltf::Material::Texture>
-  _convertTextureProperty(fbxsdk::FbxProperty &fbx_property_,
+  _convertTextureProperty(const fbxsdk::FbxProperty &fbx_property_,
                           const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::Texture>
@@ -408,7 +415,7 @@ private:
 
   std::optional<fx::gltf::Material::NormalTexture>
   _convertTexturePropertyAsNormalTexture(
-      fbxsdk::FbxProperty &fbx_property_,
+      const fbxsdk::FbxProperty &fbx_property_,
       const TextureContext &texture_context_);
 
   std::optional<fx::gltf::Material::NormalTexture>
