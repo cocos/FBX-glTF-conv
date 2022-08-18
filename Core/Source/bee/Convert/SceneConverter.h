@@ -289,7 +289,7 @@ private:
 
   void _log(bee::Logger::Level level_, Json &&message_);
 
-  void _set_missing_textures();
+  void _fixUnknownPathTextures();
 
   fbxsdk::FbxGeometryConverter &_getGeometryConverter();
 
