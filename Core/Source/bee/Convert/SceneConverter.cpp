@@ -61,7 +61,7 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
 
   const auto frameRate = fbxsdk::FbxTime::GetFrameRate(_animationTimeMode);
   _log(Logger::Level::verbose, fmt::format("Frame rate: {}", frameRate));
-  _set_missing_textures();
+  _fixUnknownPathTextures();
   auto &documentExtras = glTF_builder_.document().extensionsAndExtras;
   documentExtras["extras"]["FBX-glTF-conv"]["animationFrameRate"] = frameRate;
 }
