@@ -97,7 +97,7 @@ void SceneConverter::_log(Logger::Level level_, Json &&message_) {
 void SceneConverter::_fixUnknownPathTextures() {
   // Fetch all textures in scene.
   fbxsdk::FbxArray<fbxsdk::FbxTexture *> textures;
-  _fbxScene->FillTextureArray(textures);
+  _fbxScene.FillTextureArray(textures);
 
   // Partition all textures so that:
   // [
@@ -128,7 +128,7 @@ void SceneConverter::_fixUnknownPathTextures() {
   for (auto pKnownPathTexture = pUnknownPathTextureBegin;
        pKnownPathTexture != pUnknownPathTextureEnd; ++pKnownPathTexture) {
     const auto knownPathTexture = *pKnownPathTexture;
-    const auto sameNameButKnownPath = std::find(
+    const auto sameNameButKnownPath = std::find_if(
         pKnownPathTextureBegin, pKnownPathTextureEnd,
         [knownPathTexture](fbxsdk::FbxTexture *tex_) {
           return 0 ==
