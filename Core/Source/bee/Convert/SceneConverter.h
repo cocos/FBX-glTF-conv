@@ -289,6 +289,8 @@ private:
 
   void _log(bee::Logger::Level level_, Json &&message_);
 
+  void _set_missing_textures();
+
   fbxsdk::FbxGeometryConverter &_getGeometryConverter();
 
   void _prepareScene();
