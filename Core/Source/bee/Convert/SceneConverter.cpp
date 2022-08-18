@@ -94,41 +94,58 @@ void SceneConverter::_log(Logger::Level level_, Json &&message_) {
   }
 }
 
-void SceneConverter::_set_missing_textures() {
-  FbxScene *lScene = &_fbxScene;
-  FbxArray<FbxTexture *> lFbxTextures;
-  lScene->FillTextureArray(lFbxTextures);
-  FbxArray<FbxFileTexture *> lMissingFileNameTextures;
-  // 查找贴图路径丢失的File纹理节点
-  for (int i = 0; i < lFbxTextures.GetCount(); i++) {
-    FbxTexture *lFbxTexture = lFbxTextures.GetAt(i);
-    FbxFileTexture *lFileTexture = FbxCast<FbxFileTexture>(lFbxTexture);
-    if (lFileTexture) {
-      const FbxString lFileName = lFileTexture->GetName();
-      if (strlen(lFileTexture->GetFileName()) == 0) {
-        lMissingFileNameTextures.Add(lFileTexture);
-      }
-    }
-  }
-  // 根据纹理节点名称， 查询设置丢失的贴图 
-  for (int i = 0; i < lMissingFileNameTextures.GetCount(); i++) {
-    FbxFileTexture *lMissingFileNameTexture = lMissingFileNameTextures.GetAt(i);
-    const char *lNodeName = lMissingFileNameTexture->GetName(); // 纹理节点名称
-    for (int j = 0; j < lFbxTextures.GetCount(); j++) {
-      FbxTexture *lFbxTexture = lFbxTextures.GetAt(j);
-      FbxFileTexture *lFileTexture = FbxCast<FbxFileTexture>(lFbxTexture);
-      if (strcmp(lFbxTexture->GetName(), lNodeName) == 0) {
-        if (strlen(lFileTexture->GetFileName()) != 0) {
-          lMissingFileNameTexture->SetFileName(lFileTexture->GetFileName());
-          lMissingFileNameTexture->SetRelativeFileName(
-              lFileTexture->GetRelativeFileName());
-          break;
-        }
-      }
+void SceneConverter::_fixUnknownPathTextures() {
+  // Fetch all textures in scene.
+  fbxsdk::FbxArray<fbxsdk::FbxTexture *> textures;
+  _fbxScene->FillTextureArray(textures);
+
+  // Partition all textures so that:
+  // [
+  //   known-path-file-textures
+  //   ...
+  //   unknown-path-file-textures
+  //   ...
+  //   non-file-textures
+  // ]
+  const auto pTextures = textures.GetArray();
+  const auto pTextureEnd = pTextures + textures.GetCount();
+  const auto pFileTexturesEnd =
+      std::partition(pTextures, pTextureEnd, [](fbxsdk::FbxTexture *tex_) {
+        return fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_);
+      });
+  const auto pUnknownPathTextureBegin =
+      std::partition(pTextures, pFileTexturesEnd, [](fbxsdk::FbxTexture *tex_) {
+        const auto fileTexture = fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_);
+        return std::strlen(fileTexture->GetFileName()) != 0;
+      });
+
+  const auto pKnownPathTextureBegin = pTextures;
+  const auto pKnownPathTextureEnd = pUnknownPathTextureBegin;
+  const auto pUnknownPathTextureEnd = pFileTexturesEnd;
+
+  // For each unknown-path file texture, find if there's a also-named known-path
+  // file texture. If the one exists, copy the path.
+  for (auto pKnownPathTexture = pUnknownPathTextureBegin;
+       pKnownPathTexture != pUnknownPathTextureEnd; ++pKnownPathTexture) {
+    const auto knownPathTexture = *pKnownPathTexture;
+    const auto sameNameButKnownPath = std::find(
+        pKnownPathTextureBegin, pKnownPathTextureEnd,
+        [knownPathTexture](fbxsdk::FbxTexture *tex_) {
+          return 0 ==
+                 std::strcmp(
+                     fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_)->GetName(),
+                     fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(knownPathTexture)
+                         ->GetName());
+        });
+    if (sameNameButKnownPath != pKnownPathTextureEnd) {
+      const auto a = fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(knownPathTexture);
+      const auto b =
+          fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(*sameNameButKnownPath);
+      a->SetFileName(b->GetFileName());
+      a->SetRelativeFileName(b->GetRelativeFileName());
     }
   }
 }
-
 fbxsdk::FbxGeometryConverter &SceneConverter::_getGeometryConverter() {
   return _fbxGeometryConverter;
 }
