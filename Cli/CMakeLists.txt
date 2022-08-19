@@ -44,12 +44,14 @@ set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 20)
 
 target_link_libraries(FBX-glTF-conv PRIVATE FBX-glTF-conv-lib)
 
+# Set @rpath so executable can find .dylib/.so
+# See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
+# and also https://stackoverflow.com/a/61020959
+# and also # https://dev.my-gate.net/2021/08/04/understanding-rpath-with-cmake/
 if (APPLE)
-    # Set @rpath so executable can find .dylib
-    # See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
-    # and also https://stackoverflow.com/a/61020959
-    # May be we should use "$ORIGIN"(escape the dollar sign?) on other Unix-like OS?
     set_target_properties (FBX-glTF-conv PROPERTIES INSTALL_RPATH "@executable_path")
+elseif (UNIX)
+    set_target_properties (FBX-glTF-conv PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif ()
 
 add_custom_command(TARGET FBX-glTF-conv POST_BUILD
