@@ -1,4 +1,3 @@
-
 #include "./fbxsdk/String.h"
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
@@ -21,7 +20,7 @@ public:
   };
 
   UnsupportedInheritTypeError(Type type_, std::string_view node_)
-      : _type(type_), NodeError(node_) {
+    : NodeError(node_), _type(type_) {
   }
 
   Type type() const {
@@ -48,9 +47,10 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
                                const ConvertOptions &options_,
                                std::u8string_view fbx_file_name_,
                                GLTFBuilder &glTF_builder_)
-    : _glTFBuilder(glTF_builder_), _fbxManager(fbx_manager_),
-      _fbxScene(fbx_scene_), _options(options_), _fbxFileName(fbx_file_name_),
-      _fbxGeometryConverter(&fbx_manager_) {
+  : _glTFBuilder(glTF_builder_), _fbxManager(fbx_manager_),
+    _fbxGeometryConverter(&fbx_manager_), _fbxScene(fbx_scene_),
+    _options(options_),
+    _fbxFileName(fbx_file_name_) {
   const auto &globalSettings = fbx_scene_.GetGlobalSettings();
   if (!options_.animationBakeRate) {
     _animationTimeMode = globalSettings.GetTimeMode();
@@ -61,7 +61,7 @@ SceneConverter::SceneConverter(fbxsdk::FbxManager &fbx_manager_,
 
   const auto frameRate = fbxsdk::FbxTime::GetFrameRate(_animationTimeMode);
   _log(Logger::Level::verbose, fmt::format("Frame rate: {}", frameRate));
-
+  _fixUnknownPathTextures();
   auto &documentExtras = glTF_builder_.document().extensionsAndExtras;
   documentExtras["extras"]["FBX-glTF-conv"]["animationFrameRate"] = frameRate;
 }
@@ -76,23 +76,76 @@ void SceneConverter::convert() {
   _convertAnimation(_fbxScene);
 }
 
-void to_json(Json &j_, bee::Logger::Level level_) {
-  j_ = static_cast<std::underlying_type_t<decltype(level_)>>(level_);
+
+void to_json(Json &j_, Logger::Level level_) {
+  j_ = level_;
 }
 
-void SceneConverter::_log(bee::Logger::Level level_,
+void SceneConverter::_log(Logger::Level level_,
                           std::u8string_view message_) {
   if (_options.logger) {
     (*_options.logger)(level_, message_);
   }
 }
 
-void SceneConverter::_log(bee::Logger::Level level_, Json &&message_) {
+void SceneConverter::_log(Logger::Level level_, Json &&message_) {
   if (_options.logger) {
     (*_options.logger)(level_, std::move(message_));
   }
 }
 
+void SceneConverter::_fixUnknownPathTextures() {
+  // Fetch all textures in scene.
+  fbxsdk::FbxArray<fbxsdk::FbxTexture *> textures;
+  _fbxScene.FillTextureArray(textures);
+
+  // Partition all textures so that:
+  // [
+  //   known-path-file-textures
+  //   ...
+  //   unknown-path-file-textures
+  //   ...
+  //   non-file-textures
+  // ]
+  const auto pTextures = textures.GetArray();
+  const auto pTextureEnd = pTextures + textures.GetCount();
+  const auto pFileTexturesEnd =
+      std::partition(pTextures, pTextureEnd, [](fbxsdk::FbxTexture *tex_) {
+        return fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_);
+      });
+  const auto pUnknownPathTextureBegin =
+      std::partition(pTextures, pFileTexturesEnd, [](fbxsdk::FbxTexture *tex_) {
+        const auto fileTexture = fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_);
+        return std::strlen(fileTexture->GetFileName()) != 0;
+      });
+
+  const auto pKnownPathTextureBegin = pTextures;
+  const auto pKnownPathTextureEnd = pUnknownPathTextureBegin;
+  const auto pUnknownPathTextureEnd = pFileTexturesEnd;
+
+  // For each unknown-path file texture, find if there's a also-named known-path
+  // file texture. If the one exists, copy the path.
+  for (auto pKnownPathTexture = pUnknownPathTextureBegin;
+       pKnownPathTexture != pUnknownPathTextureEnd; ++pKnownPathTexture) {
+    const auto knownPathTexture = *pKnownPathTexture;
+    const auto sameNameButKnownPath = std::find_if(
+        pKnownPathTextureBegin, pKnownPathTextureEnd,
+        [knownPathTexture](fbxsdk::FbxTexture *tex_) {
+          return 0 ==
+                 std::strcmp(
+                     fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(tex_)->GetName(),
+                     fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(knownPathTexture)
+                         ->GetName());
+        });
+    if (sameNameButKnownPath != pKnownPathTextureEnd) {
+      const auto a = fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(knownPathTexture);
+      const auto b =
+          fbxsdk::FbxCast<fbxsdk::FbxFileTexture>(*sameNameButKnownPath);
+      a->SetFileName(b->GetFileName());
+      a->SetRelativeFileName(b->GetRelativeFileName());
+    }
+  }
+}
 fbxsdk::FbxGeometryConverter &SceneConverter::_getGeometryConverter() {
   return _fbxGeometryConverter;
 }
@@ -103,8 +156,8 @@ void SceneConverter::_prepareScene() {
 
   // Convert system unit
   if (const auto fbxFileSystemUnit =
-          _fbxScene.GetGlobalSettings().GetSystemUnit();
-      fbxFileSystemUnit != fbxsdk::FbxSystemUnit::m) {
+        _fbxScene.GetGlobalSettings().GetSystemUnit();
+    fbxFileSystemUnit != fbxsdk::FbxSystemUnit::m) {
     // FBX SDK's `convertScene` is not perfectly.
     // The problem occurs when bind a FBX model under bones in another FBX
     // model. See: https://github.com/facebookincubator/FBX2glTF/issues/29
@@ -173,7 +226,7 @@ std::string SceneConverter::_convertName(const char *fbx_name_) {
   return fbx_name_;
 }
 
-bee::filesystem::path
+filesystem::path
 SceneConverter::_convertFileName(const char *fbx_file_name_) {
   std::u8string u8name{reinterpret_cast<const char8_t *>(fbx_file_name_)};
   // Some FBX files contain non-UTF8 encoded file names and will cause
@@ -196,7 +249,7 @@ SceneConverter::_convertScene(fbxsdk::FbxScene &fbx_scene_) {
     auto &extensionsAndExtras =
         _glTFBuilder.get(&fx::gltf::Document::extensionsAndExtras);
     auto &sceneInfo = extensionsAndExtras["extras"]["FBX-glTF-conv"]
-                                         ["fbxFileHeaderInfo"]["sceneInfo"];
+        ["fbxFileHeaderInfo"]["sceneInfo"];
 
     sceneInfo["url"] = fbx_string_to_utf8_checked(fbxSceneInfo.Url.Get());
 
@@ -267,17 +320,17 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
   }
 
   if (auto fbxLocalTransform = fbx_node_.EvaluateLocalTransform();
-      !fbxLocalTransform.IsIdentity()) {
+    !fbxLocalTransform.IsIdentity()) {
     if (const auto fbxT = fbxLocalTransform.GetT(); !fbxT.IsZero(3)) {
       FbxVec3Spreader::spread(_applyUnitScaleFactorV3(fbxT),
                               glTFNode.translation.data());
     }
     if (const auto fbxR = fbxLocalTransform.GetQ();
-        fbxR.Compare(fbxsdk::FbxQuaternion{})) {
+      fbxR.Compare(fbxsdk::FbxQuaternion{})) {
       FbxQuatSpreader::spread(fbxR, glTFNode.rotation.data());
     }
     if (const auto fbxS = fbxLocalTransform.GetS();
-        fbxS[0] != 1. || fbxS[1] != 1. || fbxS[2] != 1.) {
+      fbxS[0] != 1. || fbxS[1] != 1. || fbxS[2] != 1.) {
       FbxVec3Spreader::spread(fbxS, glTFNode.scale.data());
     }
   }
@@ -342,7 +395,8 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
                                           {"a", limbColor.mBlue},
                                           {"a", limbColor.mAlpha}};
       }
-    } break;
+    }
+    break;
     default:
       // TODO:
       // if (_options.verbose) {
