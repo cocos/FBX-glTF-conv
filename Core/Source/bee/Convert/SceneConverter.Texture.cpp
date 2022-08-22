@@ -55,6 +55,47 @@ glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
          (scalePivotTransform * scale * invScalePivotTransform) *
          invPivotTransform;
 };
+
+std::u8string encode_url_component(std::u8string_view input) {
+  // http://www.zedwood.com/article/cpp-urlencode-function
+  static const char8_t lookup[] = u8"0123456789abcdef";
+  std::basic_ostringstream<char8_t> ss;
+  std::regex r("[!'\\(\\)*-.0-9A-Za-z_~]");
+  for (const auto &c : input) {
+    if ((u8'0' <= c && c <= u8'9') || // 0-9
+        (u8'a' <= c && c <= u8'z') || // a-z
+        (u8'A' <= c && c <= u8'Z') || // A-Z
+        (c == '-' || c == '_' || c == '.' || c == '~')) {
+      ss << c;
+    } else {
+      ss << '%';
+      ss << lookup[(c & 0xF0) >> 4];
+      ss << lookup[(c & 0x0F)];
+    }
+  }
+  return ss.str();
+}
+
+std::u8string path_to_file_url(const bee::filesystem::path &path_) {
+  const auto normalized = path_.lexically_normal();
+  if (normalized.empty()) {
+    return {};
+  }
+  std::basic_ostringstream<char8_t> ss;
+  ss << u8"file://";
+  auto p = normalized.begin();
+  if (p != normalized.end() && normalized.has_root_name()) {
+    ss << u8"/" << p->u8string();
+    ++p;
+  }
+  if (p != normalized.end() && normalized.has_root_directory()) {
+    ++p;
+  }
+  for (; p != normalized.end(); ++p) {
+    ss << u8"/" << encode_url_component(p->u8string());
+  }
+  return ss.str();
+}
 } // namespace
 
 namespace bee {
@@ -380,12 +421,19 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
 
   const auto toRelative = [getOutDirNormalized](const fs::path &to_) {
     const auto outDir = getOutDirNormalized();
-    return to_.lexically_relative(outDir).generic_u8string();
+    const auto rel = to_.lexically_relative(outDir).generic_u8string();
+    if (!rel.empty()) {
+      return rel;
+    } else { // Could not be referenced using relative path
+      return path_to_file_url(to_); // Fallback to absolute
+    }
   };
+
+  const auto toAbsUrl = [&]() { return path_to_file_url(normalizedPath); };
 
   switch (_options.pathMode) {
   case ConvertOptions::PathMode::absolute: {
-    return normalizedPath.u8string();
+    return toAbsUrl();
   }
   case ConvertOptions::PathMode::relative: {
     return toRelative(normalizedPath);
@@ -433,6 +481,9 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
     const auto relativePath =
         normalizedPath.lexically_relative(getOutDirNormalized());
     auto relativePathStr = relativePath.u8string();
+    if (relativePathStr.empty()) {
+      return toAbsUrl();
+    }
     const auto dotdot = std::string_view{".."};
     const auto startsWithDotDot = [](const fs::path &path_) {
       for (const auto part : path_) {
@@ -446,7 +497,7 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
     if (relativePath.is_relative() && !startsWithDotDot(relativePath)) {
       return relativePathStr;
     } else {
-      return normalizedPath.u8string();
+      return toAbsUrl();
     }
     break;
   }

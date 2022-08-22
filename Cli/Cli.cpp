@@ -125,7 +125,6 @@ int main(int argc_, const char *argv_[]) {
   MyWriter writer{cliOptions->inputFile, cliOptions->outFile};
   cliOptions->convertOptions.useDataUriForBuffers = false;
   cliOptions->convertOptions.writer = &writer;
-  cliOptions->convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
 
   std::unique_ptr<bee::Logger> logger;
   if (cliOptions->logFile) {
