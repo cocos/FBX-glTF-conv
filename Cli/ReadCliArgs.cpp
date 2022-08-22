@@ -143,6 +143,21 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       "console",
       cxxopts::value<std::string>());
 
+  options.add_options()(
+      "image-path-mode",
+      "Specify the mode used to specify the image path. Could "
+      "be one of the following:\n"
+      "- absolute - Output the absolute path to the path.\n"
+      "- relative - Output the relative path to the path.\n"
+      "- prefer-relative - If the image is under the the same or sub directory "
+      "of "
+      "glTF file, output as relative. Otherwise output as absolute.\n"
+      "- strip - Ingore all path information, only output the file name.\n"
+      "- embedded - Embedded the image into Data URI.\n"
+      "- copy - Copy the image to the output directory and reference it with a "
+      "relative path.\n",
+      cxxopts::value<std::string>());
+
   options.parse_positional("input-file");
 
   std::vector<std::string> argStrings(args_.size());
@@ -213,6 +228,33 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
     if (cliParseResult.count("export-raw-materials")) {
       cliArgs.convertOptions.export_raw_materials =
           cliParseResult["export-raw-materials"].as<bool>();
+    }
+
+    cliArgs.convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
+    if (cliParseResult.count("image-path-mode")) {
+      const auto pathModeString =
+          cliParseResult["image-path-mode"].as<std::string>();
+      if (pathModeString == "relative") {
+        cliArgs.convertOptions.pathMode =
+            bee::ConvertOptions::PathMode::relative;
+      } else if (pathModeString == "absolute") {
+        cliArgs.convertOptions.pathMode =
+            bee::ConvertOptions::PathMode::absolute;
+      } else if (pathModeString == "prefer-relative") {
+        cliArgs.convertOptions.pathMode =
+            bee::ConvertOptions::PathMode::prefer_relative;
+      } else if (pathModeString == "strip") {
+        cliArgs.convertOptions.pathMode = bee::ConvertOptions::PathMode::strip;
+      } else if (pathModeString == "embedded") {
+        cliArgs.convertOptions.pathMode =
+            bee::ConvertOptions::PathMode::embedded;
+      } else if (pathModeString == "copy") {
+        cliArgs.convertOptions.pathMode = bee::ConvertOptions::PathMode::copy;
+      } else {
+        std::cerr << "Bad --image-path-mode \"" << pathModeString << "\"\n";
+        std::cout << options.help() << std::endl;
+        return {};
+      }
     }
 
     if (cliParseResult.count("verbose")) {
