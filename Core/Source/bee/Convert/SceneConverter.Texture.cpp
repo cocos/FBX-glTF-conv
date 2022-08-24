@@ -8,6 +8,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/trigonometric.hpp>
 #include <regex>
+#include <sstream>
 
 namespace {
 using glm_fbx_vec3 = glm::tvec3<fbxsdk::FbxDouble>;
@@ -56,21 +57,20 @@ glm_fbx_mat4 compute_fbx_texture_transform(glm_fbx_vec3 pivot_center_,
          invPivotTransform;
 };
 
-std::u8string encode_url_component(std::u8string_view input) {
+std::string encode_url_component(std::u8string_view input) {
   // http://www.zedwood.com/article/cpp-urlencode-function
   static const char8_t lookup[] = u8"0123456789abcdef";
-  std::basic_ostringstream<char8_t> ss;
-  std::regex r("[!'\\(\\)*-.0-9A-Za-z_~]");
+  std::ostringstream ss;
   for (const auto &c : input) {
     if ((u8'0' <= c && c <= u8'9') || // 0-9
         (u8'a' <= c && c <= u8'z') || // a-z
         (u8'A' <= c && c <= u8'Z') || // A-Z
         (c == '-' || c == '_' || c == '.' || c == '~')) {
-      ss << c;
+      ss << static_cast<char>(c);
     } else {
       ss << '%';
-      ss << lookup[(c & 0xF0) >> 4];
-      ss << lookup[(c & 0x0F)];
+      ss << static_cast<char>(lookup[(c & 0xF0) >> 4]);
+      ss << static_cast<char>(lookup[(c & 0x0F)]);
     }
   }
   return ss.str();
@@ -81,20 +81,21 @@ std::u8string path_to_file_url(const bee::filesystem::path &path_) {
   if (normalized.empty()) {
     return {};
   }
-  std::basic_ostringstream<char8_t> ss;
-  ss << u8"file://";
+  std::ostringstream ss;
+  ss << "file://";
   auto p = normalized.begin();
   if (p != normalized.end() && normalized.has_root_name()) {
-    ss << u8"/" << p->u8string();
+    ss << "/" << p->string();
     ++p;
   }
   if (p != normalized.end() && normalized.has_root_directory()) {
     ++p;
   }
   for (; p != normalized.end(); ++p) {
-    ss << u8"/" << encode_url_component(p->u8string());
+    ss << "/" << encode_url_component(p->u8string());
   }
-  return ss.str();
+  const auto s = ss.str();
+  return std::u8string(reinterpret_cast<const char8_t *>(s.data()), s.size());
 }
 } // namespace
 
