@@ -41,8 +41,8 @@ public:
     _fbxManager->Destroy();
   }
 
-  Json BEE_API convert(std::u8string_view file_,
-                       const ConvertOptions &options_) {
+  glTF_output BEE_API convert(std::u8string_view file_,
+                              const ConvertOptions &options_) {
     GLTFBuilder glTFBuilder;
 
     auto fbxScene = _import(file_, options_, glTFBuilder);
@@ -61,6 +61,7 @@ public:
     GLTFWriter defaultWriter;
     auto glTFWriter = options_.writer ? options_.writer : &defaultWriter;
 
+    std::optional<std::vector<std::byte>> glbStoredBuffer;
     {
       const auto nBuffers =
           static_cast<std::uint32_t>(glTFDocument.buffers.size());
@@ -68,6 +69,10 @@ public:
            iBuffer < nBuffers; ++iBuffer) {
         auto &glTFBuffer = glTFDocument.buffers[iBuffer];
         const auto &bufferData = glTFBuildResult.buffers[iBuffer];
+        if (options_.glb && iBuffer == 0) {
+          glbStoredBuffer.emplace(bufferData);
+          continue;
+        }
         std::optional<std::string> uri;
         if (!options_.useDataUriForBuffers) {
           auto u8Uri = glTFWriter->buffer(bufferData.data(), bufferData.size(),
@@ -96,7 +101,7 @@ public:
     nlohmann::json glTFJson;
     fx::gltf::to_json(glTFJson, glTFDocument);
 
-    return glTFJson;
+    return {glTFJson, glbStoredBuffer};
   }
 
 private:
@@ -216,7 +221,7 @@ private:
   }
 };
 
-Json BEE_API convert(std::u8string_view file_, const ConvertOptions &options_) {
+glTF_output BEE_API convert(std::u8string_view file_, const ConvertOptions &options_) {
   Converter converter(options_);
   return converter.convert(file_, options_);
 }

@@ -8,6 +8,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string>
 
 std::u8string relativeUriBetweenPath(const bee::filesystem::path &from_,
@@ -52,6 +53,45 @@ private:
   bee::Json _messages = bee::Json::array();
 };
 
+std::vector<std::byte>
+make_glb(std::string_view json_text_,
+         std::optional<std::span<const std::byte>> glb_stored_buffer_) {
+  // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#binary-gltf-layout
+  const auto glbSize =
+      (4 + 4 + 4) + (4 + 4 + json_text_.size()) +
+      (glb_stored_buffer_ ? (4 + 4 + glb_stored_buffer_->size()) : 0);
+
+  std::vector<std::byte> glb(glbSize, static_cast<std::byte>(0));
+  std::vector<std::byte>::size_type p = 0;
+
+  const auto writeU32 = [&](std::uint32_t v_) {
+    *reinterpret_cast<std::uint32_t *>(glb.data() + p) = v_;
+    p += 4;
+  };
+
+  writeU32(0x46546C67u);                         // magic
+  writeU32(2u);                                  // version
+  writeU32(static_cast<std::uint32_t>(glbSize)); // total size
+
+  writeU32(static_cast<std::uint32_t>(json_text_.size()));
+  writeU32(0x4E4F534Au); // chunk type: JSON
+  std::transform(json_text_.begin(), json_text_.end(), glb.begin() + p,
+                 [](char ch_) { return static_cast<std::byte>(ch_); });
+  p += json_text_.size();
+
+  if (glb_stored_buffer_) {
+    writeU32(static_cast<std::uint32_t>(glb_stored_buffer_->size()));
+    writeU32(0x004E4942u); // chunk type: BIN
+    std::copy(glb_stored_buffer_->begin(), glb_stored_buffer_->end(),
+              glb.begin() + p);
+    p += glb_stored_buffer_->size();
+  }
+
+  assert(p == glb.size() && "Pre-allocation calculating error!");
+
+  return glb;
+}
+
 int main(int argc_, const char *argv_[]) {
   namespace fs = bee::filesystem;
 
@@ -84,6 +124,15 @@ int main(int argc_, const char *argv_[]) {
     cliOptions->outFile = outFilePath.u8string();
   }
   cliOptions->convertOptions.out = cliOptions->outFile;
+  { // Deduce .glb from output path
+    const auto extension = fs::path(cliOptions->outFile).extension().string();
+    std::string extensionLower = extension;
+    std::transform(extensionLower.begin(), extensionLower.end(),
+                   extensionLower.begin(), ::tolower);
+    if (extensionLower == ".glb") {
+      cliOptions->convertOptions.glb = true;
+    }
+  }
 
   class MyWriter : public bee::GLTFWriter {
   public:
@@ -141,14 +190,28 @@ int main(int argc_, const char *argv_[]) {
   int retval = exitOk;
 
   try {
-    const auto glTFJson =
+    const auto glTFOutput =
         bee::convert(cliOptions->inputFile, cliOptions->convertOptions);
+
     const auto outFilePath = fs::path{cliOptions->outFile};
-    std::ofstream glTFJsonOStream(outFilePath.string());
-    glTFJsonOStream.exceptions(std::ios::badbit | std::ios::failbit);
-    const auto glTFJsonText = glTFJson.dump(2);
-    glTFJsonOStream << glTFJsonText;
-    glTFJsonOStream.flush();
+    const auto glbOut = cliOptions->convertOptions.glb;
+    if (!glbOut) {
+      assert(!glTFOutput.glb_stored_buffer &&
+             "Should not have GLB stored buffer in such case!");
+      std::ofstream glTFJsonOStream(outFilePath.string());
+      glTFJsonOStream.exceptions(std::ios::badbit | std::ios::failbit);
+      const auto glTFJsonText = glTFOutput.json.dump(2);
+      glTFJsonOStream << glTFJsonText;
+      glTFJsonOStream.flush();
+    } else {
+      std::ofstream glTFBinaryOStream(outFilePath.string(), std::ios::binary);
+      glTFBinaryOStream.exceptions(std::ios::badbit | std::ios::failbit);
+      const auto glTFJsonText = glTFOutput.json.dump(0);
+      const auto glb = make_glb(glTFJsonText, glTFOutput.glb_stored_buffer);
+      glTFBinaryOStream.write(reinterpret_cast<const char *>(glb.data()),
+                              static_cast<std::streamsize>(glb.size()));
+      glTFBinaryOStream.flush();
+    }
   } catch (const std::exception &exception) {
     logger->operator()(bee::Logger::Level::fatal, exception.what());
     retval = exitFailureCaptured;
