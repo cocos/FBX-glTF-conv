@@ -60,6 +60,8 @@ struct ConvertOptions {
 
   std::optional<std::u8string_view> fbmDir;
 
+  bool glb = false;
+
   bool useDataUriForBuffers = true;
 
   UnitConversion unitConversion = UnitConversion::geometryLevel;
@@ -132,6 +134,13 @@ struct ConvertOptions {
   bool export_raw_materials = false;
 };
 
-Json BEE_API convert(std::u8string_view file_, const ConvertOptions &options_);
+struct glTF_output {
+  Json json;
+
+  std::optional<std::vector<std::byte>> glb_stored_buffer;
+};
+
+glTF_output BEE_API convert(std::u8string_view file_,
+                            const ConvertOptions &options_);
 
 } // namespace bee
