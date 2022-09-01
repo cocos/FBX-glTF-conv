@@ -16,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <variant>
 
 namespace bee {
 inline std::u8string_view forceTreatAsU8(std::string_view s_) {
@@ -436,7 +437,11 @@ private:
 
   std::optional<std::string> _searchImage(const std::string_view name_);
 
-  std::optional<std::u8string> _processPath(const bee::filesystem::path &path_);
+  using BufferViewIndexAndMimeType =
+      std::pair<GLTFBuilder::XXIndex, std::u8string>;
+
+  std::variant<std::monostate, std::u8string, BufferViewIndexAndMimeType>
+  _processPath(const bee::filesystem::path &path_);
 
   static std::u8string _getMimeTypeFromExtension(std::u8string_view ext_name_);
 
