@@ -362,16 +362,28 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertTextureSource(
 
   fx::gltf::Image glTFImage;
   glTFImage.name = imageName;
+  bool hasSource = false;
   if (imageFilePath) {
     auto reference = _processPath(*imageFilePath);
-    if (reference) {
-      glTFImage.uri.assign(reference->begin(), reference->end());
+    if (std::holds_alternative<std::u8string>(reference)) {
+      const auto &url = std::get<std::u8string>(reference);
+      if (!url.empty()) {
+        glTFImage.uri.assign(url.begin(), url.end());
+        hasSource = true;
+      }
+    } else if (std::holds_alternative<BufferViewIndexAndMimeType>(reference)) {
+      const auto &bufferViewIndexAndMimeType =
+          std::get<BufferViewIndexAndMimeType>(reference);
+      glTFImage.bufferView =
+          std::get<GLTFBuilder::XXIndex>(bufferViewIndexAndMimeType);
+      glTFImage.mimeType.assign(
+          std::get<std::u8string>(bufferViewIndexAndMimeType).begin(),
+          std::get<std::u8string>(bufferViewIndexAndMimeType).end());
+      hasSource = true;
     }
   }
 
-  if (glTFImage.uri.empty()) {
-    // Or we got `bufferView: 0`.
-    // glTFImage.bufferView = -1;
+  if (!hasSource) {
     glTFImage.uri = "data:image/"
                     "png;base64,"
                     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42m"
@@ -410,7 +422,9 @@ SceneConverter::_searchImage(const std::string_view name_) {
   return {};
 }
 
-std::optional<std::u8string>
+std::variant<std::monostate,
+             std::u8string,
+             SceneConverter::BufferViewIndexAndMimeType>
 SceneConverter::_processPath(const bee::filesystem::path &path_) {
   namespace fs = bee::filesystem;
 
@@ -459,21 +473,30 @@ SceneConverter::_processPath(const bee::filesystem::path &path_) {
     return toRelative(target);
   }
   case ConvertOptions::PathMode::embedded: {
-    std::ifstream ifstream(normalizedPath);
+    std::ifstream ifstream(normalizedPath, std::ios::binary);
     if (!ifstream.good()) {
       return {};
     }
-    std::vector<char> fileContent;
+    std::vector<std::uint8_t> fileContent;
     ifstream.seekg(0, ifstream.end);
     auto fileSize =
         static_cast<decltype(fileContent)::size_type>(ifstream.tellg());
     ifstream.seekg(0, ifstream.beg);
     fileContent.resize(fileSize);
-    ifstream.read(fileContent.data(), fileContent.size());
-    const auto base64Data = cppcodec::base64_rfc4648::encode(
-        reinterpret_cast<const char *>(fileContent.data()), fileContent.size());
+    ifstream.read(reinterpret_cast<char *>(fileContent.data()),
+                  fileContent.size());
     const auto mimeType =
         _getMimeTypeFromExtension(normalizedPath.extension().u8string());
+    // Always output as buffer view.
+    // TODO: is data uri meaningful in embedded mode?
+    if (true) {
+      auto [bufferViewData, bufferViewIndex] = _glTFBuilder.createBufferView(
+          static_cast<std::uint32_t>(fileContent.size()), 0, 0);
+      std::memcpy(bufferViewData, fileContent.data(), fileContent.size());
+      return std::make_pair(bufferViewIndex, mimeType);
+    }
+    const auto base64Data = cppcodec::base64_rfc4648::encode(
+        reinterpret_cast<const char *>(fileContent.data()), fileContent.size());
     const auto chars = fmt::format("data:{};base64,{}",
                                    forceTreatAsPlain(mimeType), base64Data);
     return std::u8string(reinterpret_cast<const char8_t *>(chars.data()));
