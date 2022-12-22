@@ -509,11 +509,20 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
   }
 
   {
-    using IndexUnit = GLTFComponentTypeStorage<
-        fx::gltf::Accessor::ComponentType::UnsignedInt>;
+    using IndexUnit = GLTFComponentTypeStorage<fx::gltf::Accessor::ComponentType::UnsignedInt>;
+    // Check if index data can be stored using 16-bit integers
+    auto useUint16 =
+        std::all_of(indices_.begin(), indices_.end(), [](auto index) {
+          return index <= std::numeric_limits<std::uint16_t>::max();
+        });
     auto [bufferViewData, bufferViewIndex] = _glTFBuilder.createBufferView(
-        static_cast<std::uint32_t>(indices_.size_bytes()), 0, 0);
-    std::memcpy(bufferViewData, indices_.data(), indices_.size_bytes());
+        useUint16
+            ? static_cast<std::uint32_t>(indices_.size() * sizeof(uint16_t))
+            : static_cast<std::uint32_t>(indices_.size() * sizeof(uint32_t)),
+        0, 0);
+    std::memcpy(bufferViewData, indices_.data(),
+                useUint16 ? indices_.size() * sizeof(uint16_t)
+                          : indices_.size() * sizeof(uint32_t));
     auto &glTFBufferView =
         _glTFBuilder.get(&fx::gltf::Document::bufferViews)[bufferViewIndex];
 
@@ -522,7 +531,13 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
     glTFAccessor.bufferView = bufferViewIndex;
     glTFAccessor.count = static_cast<std::uint32_t>(indices_.size());
     glTFAccessor.type = fx::gltf::Accessor::Type::Scalar;
-    glTFAccessor.componentType = fx::gltf::Accessor::ComponentType::UnsignedInt;
+    if (useUint16) {
+      // Set the component type to UnsignedShort if possible
+      glTFAccessor.componentType = fx::gltf::Accessor::ComponentType::UnsignedShort;
+    } else {
+      // Otherwise, use UnsignedInt
+      glTFAccessor.componentType = fx::gltf::Accessor::ComponentType::UnsignedInt;
+    }
 
     auto glTFAccessorIndex = _glTFBuilder.add(&fx::gltf::Document::accessors,
                                               std::move(glTFAccessor));
