@@ -334,7 +334,7 @@ SceneConverter::_convertMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
 std::optional<GLTFBuilder::XXIndex>
 SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
                                    const MaterialUsage &material_usage_) {
-  const auto materialName = std::string{fbx_material_.GetName()};
+  const auto materialName = std::string{fbx_string_to_utf8_checked(fbx_material_.GetName())};
 
   fx::gltf::Material glTFMaterial;
   glTFMaterial.name = materialName;
@@ -438,7 +438,7 @@ SceneConverter::_exportRawMaterial(fbxsdk::FbxSurfaceMaterial &fbx_material_,
 std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertLambertMaterial(
     fbxsdk::FbxSurfaceLambert &fbx_material_,
     const MaterialUsage &material_usage_) {
-  const auto materialName = std::string{fbx_material_.GetName()};
+  const auto materialName = std::string{fbx_string_to_utf8_checked(fbx_material_.GetName())};
 
   auto forbidTextureProperty = [&](std::u8string_view property_name_) {
     _log(Logger::Level::warning,
@@ -563,7 +563,7 @@ SceneConverter::_convertStanardMaterialProperties(
   const auto standardProperties =
       FbxSurfaceMaterialStandardProperties::read_from(fbx_material_);
 
-  const auto materialName = std::string{fbx_material_.GetName()};
+  const auto materialName = std::string{ fbx_string_to_utf8_checked(fbx_material_.GetName())};
 
   fx::gltf::Material glTFMaterial;
   glTFMaterial.name = materialName;
