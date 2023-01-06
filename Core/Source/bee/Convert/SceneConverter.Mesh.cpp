@@ -520,9 +520,16 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
             ? static_cast<std::uint32_t>(indices_.size() * sizeof(uint16_t))
             : static_cast<std::uint32_t>(indices_.size() * sizeof(uint32_t)),
         0, 0);
-    std::memcpy(bufferViewData, indices_.data(),
-                useUint16 ? indices_.size() * sizeof(uint16_t)
-                          : indices_.size() * sizeof(uint32_t));
+    if (useUint16) {
+        uint16_t* indices16 = new uint16_t[indices_.size()];
+        for (int i = 0; i<indices_.size();++i) {
+          indices16[i] = indices_[i];
+        }
+        std::memcpy(bufferViewData, indices16,indices_.size() * sizeof(uint16_t));
+        delete[] indices16;
+    } else {
+        std::memcpy(bufferViewData, indices_.data(),indices_.size() * sizeof(uint32_t));
+    }
     auto &glTFBufferView =
         _glTFBuilder.get(&fx::gltf::Document::bufferViews)[bufferViewIndex];
 
