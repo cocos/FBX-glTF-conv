@@ -3,6 +3,19 @@
 
 This is a FBX to glTF file format converter.
 
+# Prerequisites
+
+This project has been tested on:
+
+- Windows
+
+- macOS 10.13 or later
+
+- Ubuntu 22.04
+
+  > Ubuntu 20.04 is not supported.
+
+
 # How to use
 
 You can find the latest release in [releases page](https://github.com/cocos-creator/FBX-glTF-conv/releases).
