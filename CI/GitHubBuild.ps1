@@ -11,6 +11,7 @@ $is64BitOperatingSystem = [System.Environment]::Is64BitOperatingSystem
 Write-Host @"
 IsWindows: $IsWindows
 IsMacOS: $IsMacOS
+IsLinux: $IsLinux
 Is64BitOperatingSystem: $is64BitOperatingSystem
 Current working directory: $(Get-Location)
 ArtifactPath: $ArtifactPath
@@ -28,6 +29,8 @@ function InstallVcpkg {
     } elseif ($IsMacOS) {
         ./vcpkg/bootstrap-vcpkg.sh | Out-Host
         xcode-select --install | Out-Host
+    } elseif ($IsLinux) {
+        ./vcpkg/bootstrap-vcpkg.sh | Out-Host
     } else {
         Write-Error "vcpkg is not available on target platform."
     }
@@ -38,6 +41,8 @@ function GetTriplet {
         return "x64-windows"
     } elseif ($IsMacOS) {
         return "x64-osx"
+    } elseif ($IsLinux) {
+        return "x64-linux"
     } else {
         Write-Error "vcpkg is not available on target platform."
     }
@@ -64,6 +69,30 @@ function InstallFbxSdk {
         $fbxSdkHome = [System.IO.Path]::Combine((Get-Location), "fbxsdk", "Home")
         # Node gyp incorrectly handle spaces in path
         New-Item -ItemType SymbolicLink -Path "fbxsdk" -Name Home -Value "/Applications/Autodesk/FBX SDK/$FBXSDK_2020_0_1_CLANG_VERSION" | Out-Host
+    } elseif ($IsLinux) {
+        $FBXSDK_2020_0_1_LINUX = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-0-1/fbx202001_fbxsdk_linux.tar.gz"
+        $fbxSdkTarball = Join-Path "fbxsdk" "fbxsdk.tar.gz"
+        Write-Host "Downloading FBX SDK tar ball from $FBXSDK_2020_0_1_LINUX ..."
+        (New-Object System.Net.WebClient).DownloadFile($FBXSDK_2020_0_1_LINUX, $fbxSdkTarball)
+        $fbxSdkTarballExtractDir = Join-Path "fbxsdk" "tarbar_extract"
+        New-Item -ItemType Directory -Path $fbxSdkTarballExtractDir | Out-Null
+        Write-Host "Extracting to $fbxSdkTarballExtractDir ..."
+        & tar -zxvf $fbxSdkTarball -C $fbxSdkTarballExtractDir | Out-Host
+        $fbxSdkInstallationProgram = Join-Path $fbxSdkTarballExtractDir "fbx202001_fbxsdk_linux"
+        chmod ugo+x $fbxSdkInstallationProgram
+        
+        $fbxSdkHomeLocation = [System.IO.Path]::Combine($HOME, "fbxsdk", "install")
+        Write-Host "Installing from $fbxSdkInstallationProgram..."
+        New-Item -ItemType Directory -Path $fbxSdkHomeLocation | Out-Null
+
+        # This is really a HACK way after many tries...
+        "yes yes | $fbxSdkInstallationProgram $fbxSdkHomeLocation" | Out-File -File "./RunFbxsdkInstaller.sh"
+        & bash "./RunFbxsdkInstaller.sh" | Out-Host
+        Write-Host "`n"
+
+        Write-Host "Installation finished($fbxSdkHomeLocation)."
+        & ls $fbxSdkHomeLocation | Out-Host
+        $fbxSdkHome = $fbxSdkHomeLocation
     } else {
         Write-Error "FBXSDK is not available on target platform."
     }
@@ -71,20 +100,18 @@ function InstallFbxSdk {
 }
 
 function InstallDependencies {
-    $triplet = GetTriplet
-
-    ./vcpkg/vcpkg install libxml2:$triplet zlib:$triplet nlohmann-json:$triplet fmt:$triplet clipp:$triplet cppcodec:$triplet range-v3:$triplet
+    ./vcpkg/vcpkg install
 }
 
 # https://stackoverflow.com/questions/54372601/running-git-clone-from-powershell-giving-errors-even-when-it-seems-to-work
 $env:GIT_REDIRECT_STDERR = "2>&1"
 
+$fbxSdkHome = InstallFbxSdk
+Write-Host "FBX SDK: '$fbxSdkHome'"
+
 InstallVcpkg
 
 InstallDependencies
-
-$fbxSdkHome = InstallFbxSdk
-Write-Host "FBX SDK: $fbxSdkHome"
 
 $cmakeInstallPrefix = "out/install"
 
