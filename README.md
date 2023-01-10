@@ -23,7 +23,7 @@ You can find the latest release in [releases page](https://github.com/cocos-crea
 To convert, run the executable at command line:
 
 ```ps1
-> FBX-glTF-conv <source-FBX-file> --out <glTF-files-out-dir>
+> FBX-glTF-conv <source-FBX-file> --out <output-glTF-file>
 ```
 
 There are some options, run the executable without any arguments:
