@@ -74,6 +74,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     set (FbxSdkLibraries "${FbxSdkHome}/lib/clang/${FbxSdkConfiguration}/libfbxsdk.a")
     set (FbxSdkDynLibraries "${FbxSdkHome}/lib/clang/${FbxSdkConfiguration}/libfbxsdk.dylib")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (FbxSdkLibraries "${FbxSdkHome}/lib/gcc/x64/${FbxSdkConfiguration}/libfbxsdk.a")
+    set (FbxSdkDynLibraries "${FbxSdkHome}/lib/gcc/x64/${FbxSdkConfiguration}/libfbxsdk.so")
 else ()
     message (FATAL_ERROR "Can not decide FBX SDK library to use cause of unknown C++ compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 endif ()
@@ -85,7 +88,12 @@ message (STATUS "FBX SDK dynamic libraries: ${FbxSdkDynLibraries}")
 # https://forums.autodesk.com/t5/fbx-forum/cmake-error-quot-undefined-symbols-for-architecture-x86-64-quot/td-p/8992522
 find_package(LibXml2 REQUIRED)
 target_include_directories(BeeCore PRIVATE ${LIBXML2_INCLUDE_DIR})
-target_link_libraries(BeeCore PRIVATE ${LIBXML2_LIBRARIES})
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # I don't know why on Ubuntu "PUBLIC" is needed, otherwise there're link errors.
+    target_link_libraries(BeeCore PUBLIC LibXml2::LibXml2)
+else ()
+    target_link_libraries(BeeCore PRIVATE ${LIBXML2_LIBRARIES})
+endif ()
 find_package(ZLIB REQUIRED)
 target_link_libraries(BeeCore PRIVATE ZLIB::ZLIB)
 
@@ -130,9 +138,12 @@ if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
 endif()
 install (FILES ${FbxSdkDynLibraries} DESTINATION "bin")
 
-# Testing 
-find_package(doctest REQUIRED) 
-add_executable(FBX-glTF-conv-core-test "${CMAKE_CURRENT_LIST_DIR}/Test/Mesh.cpp") 
+# Testing
+file (GLOB_RECURSE BeeCoreTestSource
+    "${CMAKE_CURRENT_LIST_DIR}/Test/*.cpp"
+)
+find_package(doctest REQUIRED)
+add_executable(FBX-glTF-conv-core-test ${BeeCoreTestSource}) 
 set_target_properties (FBX-glTF-conv-core-test PROPERTIES CXX_STANDARD 20) 
 target_include_directories(FBX-glTF-conv-core-test PRIVATE ${DOCTEST_INCLUDE_DIR}) 
 target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/Source") 
