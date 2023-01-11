@@ -137,3 +137,19 @@ if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
     install (FILES $<TARGET_PDB_FILE:BeeCore> DESTINATION "bin" OPTIONAL)
 endif()
 install (FILES ${FbxSdkDynLibraries} DESTINATION "bin")
+
+# Testing
+file (GLOB_RECURSE BeeCoreTestSource
+    "${CMAKE_CURRENT_LIST_DIR}/Test/*.cpp"
+)
+find_package(doctest REQUIRED)
+add_executable(FBX-glTF-conv-core-test ${BeeCoreTestSource}) 
+set_target_properties (FBX-glTF-conv-core-test PROPERTIES CXX_STANDARD 20) 
+target_include_directories(FBX-glTF-conv-core-test PRIVATE ${DOCTEST_INCLUDE_DIR}) 
+target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/Source") 
+target_link_libraries(FBX-glTF-conv-core-test PRIVATE doctest::doctest) 
+target_include_directories (FBX-glTF-conv-core-test PRIVATE ${FbxSdkIncludeDirectories}) 
+target_link_libraries (FBX-glTF-conv-core-test PRIVATE ${FbxSdkLibraries}) 
+target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/nlohmann-json")
+target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Core/fx/include")
+target_link_libraries (FBX-glTF-conv-core-test PUBLIC BeeCore)
