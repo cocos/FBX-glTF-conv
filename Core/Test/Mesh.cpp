@@ -1,6 +1,3 @@
-
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
 #include "bee/Converter.Test.h"
 #include <doctest/doctest.h>
 #include <fbxsdk.h>
@@ -20,28 +17,28 @@ void createFbxGrid(const char *path_, std::uint32_t N) {
 
      std::vector<FbxVector4> vertices;
      vertices.reserve(N * N);
-      for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
+      for (decltype(N) i = 0; i < N; i++) {
+        for (decltype(N) j = 0; j < N; j++) {
           vertices.push_back(FbxVector4((float)i, 0.0, (float)j));
         }
       }
       // Set the vertices of the grid
       grid->InitControlPoints(N * N);
-      for (int i = 0; i < N * N; i++) {
+      for (decltype(N) i = 0; i < N * N; i++) {
         grid->SetControlPointAt(vertices[i], i);
       }
       // Define the faces of the grid
       std::vector<int> indices;
       indices.reserve((N - 1) * (N - 1) * 4);
-      for (int i = 0; i < N - 1; i++) {
-        for (int j = 0; j < N - 1; j++) {
+      for (decltype(N) i = 0; i < N - 1; i++) {
+        for (decltype(N) j = 0; j < N - 1; j++) {
           indices.push_back(i * N + j);
           indices.push_back(i * N + j + 1);
           indices.push_back((i + 1) * N + j + 1);
           indices.push_back((i + 1) * N + j);
         }
       }
-      for (int i = 0; i < (N - 1) * (N - 1); i++) {
+      for (decltype(N) i = 0; i < (N - 1) * (N - 1); i++) {
         grid->BeginPolygon(-1, -1, false);
         grid->AddPolygon(indices[i * 4 + 0]);
         grid->AddPolygon(indices[i * 4 + 1]);
@@ -89,7 +86,7 @@ void createTriangles(const char *path_, int N, int M = 200) {
    // Set the control point positions
     FbxVector4 *controlPoints = triangleMesh->GetControlPoints();
     int count = 0;
-    for (int i = 0; i < N; i++) {
+    for (decltype(N) i = 0; i < N; i++) {
         double x = i % M * 1.1 ;
         double y = i / M * 1.1;
         double z = 0;
@@ -100,7 +97,7 @@ void createTriangles(const char *path_, int N, int M = 200) {
 
     // Create triangles
     int triangleCount = N;
-    for (int i = 0; i < triangleCount; i++) {
+    for (decltype(N) i = 0; i < triangleCount; i++) {
         triangleMesh->BeginPolygon();
         triangleMesh->AddPolygon(i * 3);
         triangleMesh->AddPolygon(i * 3 + 1);
