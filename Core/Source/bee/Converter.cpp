@@ -233,6 +233,12 @@ glTF_output BEE_API convert(std::u8string_view file_,
   return converter.convert(file_, options_);
 }
 
+/// <summary>
+/// Expose for testing only.
+/// </summary>
+/// <param name="file_"></param>
+/// <param name="options_"></param>
+/// <returns></returns>
 GLTFBuilder BEE_API _convert_test(std::u8string_view file_,
                                   const ConvertOptions &options_) {
   Converter converter(options_);

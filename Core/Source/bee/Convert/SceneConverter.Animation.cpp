@@ -25,6 +25,11 @@ bool isApproximatelyEqual(const fbxsdk::FbxDouble *from_,
   return true;
 }
 
+// This anoynmous namespace is used to suppress GCC error:
+// error: ¡®fbxsdk::FbxDouble lerp(fbxsdk::FbxDouble, fbxsdk::FbxDouble,
+// fbxsdk::FbxDouble)¡¯ conflicts with a previous declaration note: previous
+// declaration ¡®constexpr double std::lerp(double, double, double)¡¯
+namespace {
 fbxsdk::FbxDouble
 lerp(fbxsdk::FbxDouble from_, fbxsdk::FbxDouble to_, fbxsdk::FbxDouble rate_) {
   return from_ + (to_ - from_) * rate_;
@@ -43,6 +48,7 @@ fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
                             fbxsdk::FbxDouble rate_) {
   return from_.Slerp(to_, rate_);
 }
+} // namespace
 
 namespace bee {
 /// <summary>

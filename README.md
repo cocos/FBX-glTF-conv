@@ -3,6 +3,19 @@
 
 This is a FBX to glTF file format converter.
 
+# Prerequisites
+
+This project has been tested on:
+
+- Windows
+
+- macOS 10.13 or later
+
+- Ubuntu 22.04
+
+  > Ubuntu 20.04 is not supported.
+
+
 # How to use
 
 You can find the latest release in [releases page](https://github.com/cocos-creator/FBX-glTF-conv/releases).
@@ -10,7 +23,7 @@ You can find the latest release in [releases page](https://github.com/cocos-crea
 To convert, run the executable at command line:
 
 ```ps1
-> FBX-glTF-conv <source-FBX-file> --out <glTF-files-out-dir>
+> FBX-glTF-conv <source-FBX-file> --out <output-glTF-file>
 ```
 
 There are some options, run the executable without any arguments:
@@ -23,30 +36,54 @@ Usage:
   FBX-glTF-conv [OPTION...] positional parameters
 
       --fbm-dir arg             The directory to store the embedded media.
-      --out                     The output path to the .gltf or .glb file.
+      --out arg                 The output path to the .gltf or .glb file.
                                 Defaults to
-                                `<working-directory>/<FBX-filename-basename>.gltf`
+                                `<working-directory>/<FBX-filename-basename>
+                                .gltf`
       --no-flip-v               Do not flip V texture coordinates.
-      --unit-conversion arg       -
-
-                                - `hierarchy-level` Do unit conversion at
-                                  - `disabled` Disable unit
-                                conversion. This may cause the generated glTF
-                                does't conform to glTF specification. (default:
+      --unit-conversion arg     How to perform unit converseion.
+                                  - `geometry-level` Do unit conversion at
+                                geometry level.
+                                  - `hierarchy-level` Do unit conversion at
+                                hierarchy level.
+                                  - `disabled` Disable unit conversion.
+                                This may cause the generated glTF does't
+                                conform to glTF specification. (default:
                                 geometry-level)
       --no-texture-resolution   Do not resolve textures.
-      --prefer-local-time-span  Prefer local time spans recorded in FBX file
-                                for animation exporting. (default: true)
+      --prefer-local-time-span  Prefer local time spans recorded in FBX
+                                file for animation exporting. (default:
+                                true)
       --animation-bake-rate arg
                                 Animation bake rate(in FPS). (default: 30)
       --texture-search-locations arg
-                                Texture search locations. These path shall be
-                                absolute path or relative path from input
-                                file's directory.
+                                Texture search locations. These path shall
+                                be absolute path or relative path from
+                                input file's directory.
+      --export-fbx-file-header-info
+                                Export FBX file header info.
+      --export-raw-materials    Export raw materials.
       --verbose                 Verbose output.
       --log-file arg            Specify the log file(logs are outputed as
                                 JSON). If not specified, logs're printed to
                                 console
+      --image-path-mode arg     Specify the mode used to specify the image
+                                path. Could be one of the following:
+                                - absolute - Output the absolute path to
+                                the path.
+                                - relative - Output the relative path to
+                                the path.
+                                - prefer-relative - If the image is under
+                                the the same or sub directory of glTF file,
+                                output as relative. Otherwise output as
+                                absolute.
+                                - strip - Ingore all path information, only
+                                output the file name.
+                                - embedded - Embedded the image into Data
+                                URI.
+                                - copy - Copy the image to the output
+                                directory and reference it with a relative
+                                path.
 ```
 
 ## Build

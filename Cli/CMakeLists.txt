@@ -44,12 +44,14 @@ set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 20)
 
 target_link_libraries(FBX-glTF-conv PRIVATE FBX-glTF-conv-lib)
 
+# Set @rpath so executable can find .dylib/.so
+# See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
+# and also https://stackoverflow.com/a/61020959
+# and also # https://dev.my-gate.net/2021/08/04/understanding-rpath-with-cmake/
 if (APPLE)
-    # Set @rpath so executable can find .dylib
-    # See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
-    # and also https://stackoverflow.com/a/61020959
-    # May be we should use "$ORIGIN"(escape the dollar sign?) on other Unix-like OS?
     set_target_properties (FBX-glTF-conv PROPERTIES INSTALL_RPATH "@executable_path")
+elseif (UNIX)
+    set_target_properties (FBX-glTF-conv PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif ()
 
 add_custom_command(TARGET FBX-glTF-conv POST_BUILD
@@ -64,7 +66,6 @@ install (TARGETS FBX-glTF-conv DESTINATION "bin")
 find_package(doctest REQUIRED)
 add_executable(FBX-glTF-conv-test "${CMAKE_CURRENT_LIST_DIR}/Test/ReadCliArgs.cpp")
 set_target_properties (FBX-glTF-conv-test PROPERTIES CXX_STANDARD 20)
-message (STATUS "DDDDDD ${DOCTEST_INCLUDE_DIR}")
 target_include_directories(FBX-glTF-conv-test PRIVATE ${DOCTEST_INCLUDE_DIR})
 target_include_directories (FBX-glTF-conv-test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(FBX-glTF-conv-test PRIVATE doctest::doctest)
