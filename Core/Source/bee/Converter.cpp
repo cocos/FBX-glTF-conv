@@ -41,8 +41,8 @@ public:
     _fbxManager->Destroy();
   }
 
-  glTF_output BEE_API convert(std::u8string_view file_,
-                              const ConvertOptions &options_) {
+  GLTFBuilder _convert(std::u8string_view file_,
+                       const ConvertOptions &options_) {
     GLTFBuilder glTFBuilder;
 
     auto fbxScene = _import(file_, options_, glTFBuilder);
@@ -50,7 +50,13 @@ public:
     SceneConverter sceneConverter{*_fbxManager, *fbxScene, options_, file_,
                                   glTFBuilder};
     sceneConverter.convert();
+    return glTFBuilder;
+  }
 
+  glTF_output BEE_API convert(std::u8string_view file_,
+                              const ConvertOptions &options_) {
+
+    auto glTFBuilder = _convert(file_, options_);
     GLTFBuilder::BuildOptions buildOptions;
     buildOptions.generator = "FBX-glTF-conv";
     buildOptions.copyright =
@@ -221,8 +227,21 @@ private:
   }
 };
 
-glTF_output BEE_API convert(std::u8string_view file_, const ConvertOptions &options_) {
+glTF_output BEE_API convert(std::u8string_view file_,
+                            const ConvertOptions &options_) {
   Converter converter(options_);
   return converter.convert(file_, options_);
+}
+
+/// <summary>
+/// Expose for testing only.
+/// </summary>
+/// <param name="file_"></param>
+/// <param name="options_"></param>
+/// <returns></returns>
+GLTFBuilder BEE_API _convert_test(std::u8string_view file_,
+                                  const ConvertOptions &options_) {
+  Converter converter(options_);
+  return converter._convert(file_, options_);
 }
 } // namespace bee
