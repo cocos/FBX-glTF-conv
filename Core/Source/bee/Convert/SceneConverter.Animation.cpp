@@ -1,54 +1,10 @@
 
+#include <bee/Convert/AnimationUtility.h>
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/DirectSpreader.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <fmt/format.h>
-
-constexpr static auto defaultEplislon = static_cast<fbxsdk::FbxDouble>(1e-6);
-
-bool isApproximatelyEqual(fbxsdk::FbxDouble from_,
-                          fbxsdk::FbxDouble to_,
-                          fbxsdk::FbxDouble eplislon_ = defaultEplislon) {
-  return std::abs(from_ - to_) < eplislon_;
-}
-
-template <int Size_>
-bool isApproximatelyEqual(const fbxsdk::FbxDouble *from_,
-                          const fbxsdk::FbxDouble *to_,
-                          fbxsdk::FbxDouble eplislon_ = defaultEplislon) {
-  for (int i = 0; i < Size_; ++i) {
-    if (!isApproximatelyEqual(from_[i], to_[i], eplislon_)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// This anoynmous namespace is used to suppress GCC error:
-// error: ¡®fbxsdk::FbxDouble lerp(fbxsdk::FbxDouble, fbxsdk::FbxDouble,
-// fbxsdk::FbxDouble)¡¯ conflicts with a previous declaration note: previous
-// declaration ¡®constexpr double std::lerp(double, double, double)¡¯
-namespace {
-fbxsdk::FbxDouble
-lerp(fbxsdk::FbxDouble from_, fbxsdk::FbxDouble to_, fbxsdk::FbxDouble rate_) {
-  return from_ + (to_ - from_) * rate_;
-}
-
-fbxsdk::FbxVector4 lerp(const fbxsdk::FbxVector4 &from_,
-                        const fbxsdk::FbxVector4 &to_,
-                        fbxsdk::FbxDouble rate_) {
-  return fbxsdk::FbxVector4(
-      lerp(from_[0], to_[0], rate_), lerp(from_[1], to_[1], rate_),
-      lerp(from_[2], to_[2], rate_), lerp(from_[3], to_[3], rate_));
-}
-
-fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
-                            const fbxsdk::FbxQuaternion &to_,
-                            fbxsdk::FbxDouble rate_) {
-  return from_.Slerp(to_, rate_);
-}
-} // namespace
 
 namespace bee {
 /// <summary>
@@ -463,10 +419,9 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
   }
 
   const auto nFrames = anim_range_.frames_count();
-  std::vector<double> times;
-  std::vector<fbxsdk::FbxVector4> translations;
-  std::vector<fbxsdk::FbxQuaternion> rotations;
-  std::vector<fbxsdk::FbxVector4> scales;
+  Track<fbxsdk::FbxVector4> translations;
+  Track<fbxsdk::FbxQuaternion> rotations;
+  Track<fbxsdk::FbxVector4> scales;
 
   const auto firstTimeDouble = anim_range_.first_frame_seconds();
   for (std::remove_const_t<decltype(nFrames)> iFrame = 0; iFrame < nFrames;
@@ -476,99 +431,39 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     const auto &localTransform = fbx_node_.EvaluateLocalTransform(fbxTime);
 
     const auto time = fbxTime.GetSecondDouble() - firstTimeDouble;
-    fbxsdk::FbxVector4 translation;
+
     if (isTranslationAnimated) {
-      translation = _applyUnitScaleFactorV3(localTransform.GetT());
+      const auto translation = _applyUnitScaleFactorV3(localTransform.GetT());
+      translations.add(time, translation);
     }
-    fbxsdk::FbxQuaternion rotation;
+
     if (isRotationAnimated) {
-      rotation = localTransform.GetQ();
+      auto rotation = localTransform.GetQ();
       rotation.Normalize();
+      rotations.add(time, rotation);
     }
-    fbxsdk::FbxVector4 scale;
+
     if (isScaleAnimated) {
-      scale = localTransform.GetS();
-    }
-
-    const auto lastFrameMayBeOptOut = [&]() {
-      // We have to admit that we at least get 3 frames
-      // even they are linear at all.
-      if (times.size() < 2) {
-        return false;
-      }
-
-      const auto iLast = times.size() - 1;
-      const auto iLastLast = times.size() - 2;
-      const auto lastTime = times[iLast];
-      const auto lastLastTime = times[iLastLast];
-      const auto dTime = time - lastTime;
-      if (isApproximatelyEqual(dTime, 0.0)) {
-        // If current frame time is indistinguishable from previous frame time,
-        // we can omit it.
-        return true;
-      }
-      const auto rate = (lastTime - lastLastTime) / dTime;
-      if (isApproximatelyEqual(rate, 0.0)) {
-        // If two previous frame times are indistinguishable, we shall not omit
-        // current frame.
-        return false;
-      }
-      if (isTranslationAnimated &&
-          !isApproximatelyEqual<3>(
-              lerp(translations[iLastLast], translation, rate),
-              translations[iLast])) {
-        return false;
-      }
-      if (isRotationAnimated &&
-          !isApproximatelyEqual<4>(slerp(rotations[iLastLast], rotation, rate),
-                                   rotations[iLast])) {
-        return false;
-      }
-      if (isScaleAnimated &&
-          !isApproximatelyEqual<3>(lerp(scales[iLastLast], scale, rate),
-                                   scales[iLast])) {
-        return false;
-      }
-      return true;
-    };
-
-    const auto replaceLastFrame = lastFrameMayBeOptOut();
-    if (replaceLastFrame) {
-      assert(!times.empty());
-      times.back() = time;
-      if (isTranslationAnimated) {
-        translations.back() = translation;
-      }
-      if (isRotationAnimated) {
-        rotations.back() = rotation;
-      }
-      if (isScaleAnimated) {
-        scales.back() = scale;
-      }
-    } else {
-      times.push_back(time);
-      if (isTranslationAnimated) {
-        translations.push_back(translation);
-      }
-      if (isRotationAnimated) {
-        rotations.push_back(rotation);
-      }
-      if (isScaleAnimated) {
-        scales.push_back(scale);
-      }
+      const auto scale = localTransform.GetS();
+      scales.add(time, scale);
     }
   }
 
-  auto timeAccessorIndex =
-      _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Scalar,
-                                  fx::gltf::Accessor::ComponentType::Float,
-                                  DirectSpreader<decltype(times)::value_type>>(
-          times, 0, 0, true);
-  _glTFBuilder.get(&fx::gltf::Document::accessors)[timeAccessorIndex].name =
-      fmt::format("{}/Trs/Input", fbx_node_.GetName());
-  auto addChannel = [timeAccessorIndex, &glTF_animation_, glTFNodeIndex, this,
-                     &fbx_node_](std::string_view path_,
+  translations.reduceLinearKeys();
+  rotations.reduceLinearKeys();
+  scales.reduceLinearKeys();
+
+  auto addChannel = [&glTF_animation_, glTFNodeIndex, this,
+                     &fbx_node_](const auto &track_, std::string_view path_,
                                  std::uint32_t value_accessor_index_) {
+    const auto timeAccessorIndex = _glTFBuilder.createAccessor<
+        fx::gltf::Accessor::Type::Scalar,
+        fx::gltf::Accessor::ComponentType::Float,
+        DirectSpreader<typename decltype(track_.times)::value_type>>(
+        track_.times, 0, 0, true);
+    _glTFBuilder.get(&fx::gltf::Document::accessors)[timeAccessorIndex].name =
+        fmt::format("{}/{}/Input", fbx_node_.GetName(), path_);
+
     _glTFBuilder.get(&fx::gltf::Document::accessors)[value_accessor_index_]
         .name = fmt::format("{}/{}/Output", fbx_node_.GetName(), path_);
     fx::gltf::Animation::Sampler sampler;
@@ -589,22 +484,22 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     auto valueAccessorIndex =
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec3,
                                     fx::gltf::Accessor::ComponentType::Float,
-                                    FbxVec3Spreader>(translations, 0, 0);
-    addChannel("translation", valueAccessorIndex);
+                                    FbxVec3Spreader>(translations.values, 0, 0);
+    addChannel(translations, "translation", valueAccessorIndex);
   }
   if (isRotationAnimated) {
     auto valueAccessorIndex =
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec4,
                                     fx::gltf::Accessor::ComponentType::Float,
-                                    FbxQuatSpreader>(rotations, 0, 0);
-    addChannel("rotation", valueAccessorIndex);
+                                    FbxQuatSpreader>(rotations.values, 0, 0);
+    addChannel(rotations, "rotation", valueAccessorIndex);
   }
   if (isScaleAnimated) {
     auto valueAccessorIndex =
         _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Vec3,
                                     fx::gltf::Accessor::ComponentType::Float,
-                                    FbxVec3Spreader>(scales, 0, 0);
-    addChannel("scale", valueAccessorIndex);
+                                    FbxVec3Spreader>(scales.values, 0, 0);
+    addChannel(scales, "scale", valueAccessorIndex);
   }
 }
 } // namespace bee
