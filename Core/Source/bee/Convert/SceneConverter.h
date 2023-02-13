@@ -38,6 +38,9 @@ public:
   void convert();
 
 private:
+
+  std::map<fbxsdk::FbxNode *, std::string> nodeMeshMap;
+
   struct FbxBlendShapeData {
     struct Channel {
       /// <summary>
@@ -293,6 +296,8 @@ private:
   fbxsdk::FbxGeometryConverter &_getGeometryConverter();
 
   void _prepareScene();
+
+  void _traverseNodes(FbxNode *node);
 
   void _announceNodes(const fbxsdk::FbxScene &fbx_scene_);
 

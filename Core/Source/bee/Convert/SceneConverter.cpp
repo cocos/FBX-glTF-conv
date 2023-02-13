@@ -126,12 +126,29 @@ void SceneConverter::_prepareScene() {
     }
   }
 
+  // Save Original mesh name
+  _traverseNodes(_fbxScene.GetRootNode());
   // Trianglute the whole scene
   _fbxGeometryConverter.Triangulate(&_fbxScene, true);
 
   // Split meshes per material
   _fbxGeometryConverter.SplitMeshesPerMaterial(&_fbxScene, true);
 }
+
+void SceneConverter::_traverseNodes(FbxNode *node) {
+  auto mesh = node->GetMesh();
+  if (mesh) {
+    if (strlen(mesh->GetName()) > 0) {
+      nodeMeshMap[node] = mesh->GetName();
+    } else {
+      nodeMeshMap[node] = node->GetName();
+    }
+  }
+  for (int i = 0; i < node->GetChildCount(); i++) {
+    _traverseNodes(node->GetChild(i));
+  }
+}
+
 
 void SceneConverter::_announceNodes(const fbxsdk::FbxScene &fbx_scene_) {
   auto rootNode = fbx_scene_.GetRootNode();
