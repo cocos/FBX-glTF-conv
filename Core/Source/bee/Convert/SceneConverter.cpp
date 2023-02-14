@@ -138,7 +138,7 @@ void SceneConverter::_prepareScene() {
 void SceneConverter::_traverseNodes(FbxNode *node) {
   auto mesh = node->GetMesh();
   if (mesh) {
-    if (strlen(mesh->GetName()) > 0) {
+    if (std::strlen(mesh->GetName()) > 0) {
       nodeMeshMap[node] = mesh->GetName();
     } else {
       nodeMeshMap[node] = node->GetName();
