@@ -1286,7 +1286,7 @@ namespace gltf
         detail::WriteField("bufferView", json, accessor.bufferView, -1);
         detail::WriteField("byteOffset", json, accessor.byteOffset, {});
         detail::WriteField("componentType", json, accessor.componentType, Accessor::ComponentType::None);
-        detail::WriteField("count", json, accessor.count, {});
+        detail::WriteField("count", json, accessor.count, static_cast<uint32_t>(-1));
         detail::WriteField("max", json, accessor.max);
         detail::WriteField("min", json, accessor.min);
         detail::WriteField("name", json, accessor.name);
