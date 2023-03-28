@@ -73,7 +73,7 @@ function InstallFbxSdk {
 function InstallDependencies {
     $triplet = GetTriplet
 
-    ./vcpkg/vcpkg install libxml2:$triplet zlib:$triplet nlohmann-json:$triplet fmt:$triplet clipp:$triplet cppcodec:$triplet range-v3:$triplet
+    ./vcpkg/vcpkg install
 }
 
 # https://stackoverflow.com/questions/54372601/running-git-clone-from-powershell-giving-errors-even-when-it-seems-to-work

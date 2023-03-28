@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - 'release-*'
 jobs:
   get_release_info_job:
     name: Get Release Info
