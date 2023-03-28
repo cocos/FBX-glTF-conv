@@ -270,7 +270,7 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       std::cerr << options.help() << std::endl;
       return {};
     }
-  } catch (const cxxopts::OptionException &ex_) {
+  } catch (const cxxopts::exceptions::exception &ex_) {
     std::cerr << ex_.what() << "\n";
     std::cout << options.help() << std::endl;
     return {};
