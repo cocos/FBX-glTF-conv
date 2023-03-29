@@ -67,6 +67,64 @@ getCommandLineArgsU8(int argc_, const char *argv_[]) {
 #endif
 }
 
+template <auto MemberPtr> struct ConvertOptionBindingTrait {};
+
+template <>
+struct ConvertOptionBindingTrait<
+    &bee::ConvertOptions::animation_position_error_multiplier> {
+  constexpr static auto name = "animation-position-error-multiplier";
+  constexpr static auto description = "Animation position error multiplier.";
+  constexpr static auto default_value = "1e-5";
+};
+
+template <>
+struct ConvertOptionBindingTrait<
+    &bee::ConvertOptions::animation_scale_error_multiplier> {
+  constexpr static auto name = "animation-scale-error-multiplier";
+  constexpr static auto description = "Animation scale error multiplier.";
+  constexpr static auto default_value = "1e-5";
+};
+
+template <auto memberPtr> struct convert_option_binding_helper {};
+
+template <typename OptionType, OptionType bee::ConvertOptions::*optionMemberPtr>
+struct convert_option_binding_helper<optionMemberPtr> {
+  constexpr static auto add_cxx_option(cxxopts::Options &cxx_options_,
+                                       bee::ConvertOptions &convert_options_) {
+    using Trait = ConvertOptionBindingTrait<optionMemberPtr>;
+
+    cxx_options_.add_options()(std::string{Trait::name},
+                               std::string{Trait::description},
+                               cxxopts::value<OptionType>()->default_value(
+                                   std::string{Trait::default_value}));
+  }
+
+  constexpr static auto
+  fetch_convert_option(const cxxopts::ParseResult &cxxopts_parse_result_,
+                       bee::ConvertOptions &convert_options_) {
+    using Trait = ConvertOptionBindingTrait<optionMemberPtr>;
+    if (cxxopts_parse_result_.count(Trait::name)) {
+      convert_options_.*optionMemberPtr =
+          cxxopts_parse_result_[Trait::name].template as<OptionType>();
+    }
+  }
+};
+
+template <auto memberPtr>
+constexpr static auto add_cxx_option(cxxopts::Options &cxx_options_,
+                                     bee::ConvertOptions &convert_options_) {
+  return convert_option_binding_helper<memberPtr>::add_cxx_option(
+      cxx_options_, convert_options_);
+}
+
+template <auto memberPtr>
+constexpr static auto
+fetch_convert_option(const cxxopts::ParseResult &cxxopts_parse_result_,
+                     bee::ConvertOptions &convert_options_) {
+  return convert_option_binding_helper<memberPtr>::fetch_convert_option(
+      cxxopts_parse_result_, convert_options_);
+}
+
 std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
   std::string inputFile;
   std::string outFile;
@@ -82,6 +140,11 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
 
   cxxopts::Options options{"FBX-glTF-conv",
                            "This is a FBX to glTF file format converter."};
+
+  const auto add_cxx_option = [&options, &cliArgs ]<auto memberPtr>() {
+    convert_option_binding_helper<memberPtr>::add_cxx_option(
+        options, cliArgs.convertOptions);
+  };
 
   options.add_options()("input-file", "Input file",
                         cxxopts::value<std::string>());
@@ -120,6 +183,12 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       "animation-bake-rate", "Animation bake rate(in FPS).",
       cxxopts::value<decltype(cliArgs.convertOptions.animationBakeRate)>()
           ->default_value("30"));
+
+  add_cxx_option.template
+  operator()<&bee::ConvertOptions::animation_position_error_multiplier>();
+
+  add_cxx_option.template
+  operator()<&bee::ConvertOptions::animation_scale_error_multiplier>();
 
   options.add_options()(
       "texture-search-locations",
@@ -179,6 +248,12 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       return {};
     }
 
+    const auto fetch_convert_option =
+        [&cliParseResult, &cliArgs ]<auto memberPtr>() {
+      convert_option_binding_helper<memberPtr>::fetch_convert_option(
+          cliParseResult, cliArgs.convertOptions);
+    };
+
     if (cliParseResult.count("input-file")) {
       inputFile = cliParseResult["input-file"].as<std::string>();
     }
@@ -219,6 +294,12 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
           cliParseResult["animation-bake-rate"]
               .as<decltype(cliArgs.convertOptions.animationBakeRate)>();
     }
+
+    fetch_convert_option.template
+    operator()<&bee::ConvertOptions::animation_position_error_multiplier>();
+
+    fetch_convert_option.template
+    operator()<&bee::ConvertOptions::animation_scale_error_multiplier>();
 
     if (cliParseResult.count("export-fbx-file-header-info")) {
       cliArgs.convertOptions.export_fbx_file_header_info =

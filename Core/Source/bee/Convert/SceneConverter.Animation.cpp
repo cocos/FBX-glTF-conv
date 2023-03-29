@@ -449,9 +449,9 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     }
   }
 
-  translations.reduceLinearKeys();
-  rotations.reduceLinearKeys();
-  scales.reduceLinearKeys();
+  translations.reduceLinearKeys(_options.animation_position_error_multiplier);
+  rotations.reduceLinearKeys(defaultEplislon);
+  scales.reduceLinearKeys(_options.animation_scale_error_multiplier);
 
   auto addChannel = [&glTF_animation_, glTFNodeIndex, this,
                      &fbx_node_](const auto &track_, std::string_view path_,
