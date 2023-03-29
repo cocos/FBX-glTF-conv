@@ -78,6 +78,10 @@ struct ConvertOptions {
   /// </summary>
   bool prefer_local_time_span = true;
 
+  float animation_position_error_multipler = 1e-5f;
+
+  float animation_scale_error_multipler = 1e-5f;
+
   struct TextureResolution {
     bool disabled = false;
     std::vector<std::u8string> locations;

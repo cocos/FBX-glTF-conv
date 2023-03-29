@@ -47,6 +47,10 @@ TEST_CASE("Read CLI arguments") {
     CHECK_EQ(convertOptions->logFile, std::nullopt);
     CHECK_EQ(convertOptions->convertOptions.prefer_local_time_span, true);
     CHECK_EQ(convertOptions->convertOptions.animationBakeRate, 0);
+    CHECK_EQ(convertOptions->convertOptions.animation_position_error_multipler,
+             doctest::Approx(1e-5));
+    CHECK_EQ(convertOptions->convertOptions.animation_scale_error_multipler,
+             doctest::Approx(1e-5));
     CHECK_EQ(convertOptions->convertOptions.verbose, false);
     CHECK_EQ(convertOptions->convertOptions.noFlipV, false);
     CHECK_EQ(convertOptions->convertOptions.textureResolution.disabled, false);
@@ -163,6 +167,20 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
   CHECK_EQ(read_cli_args_with_dummy_and("--animation-bake-rate=30"sv)
                ->convertOptions.animationBakeRate,
            30);
+}
+
+{ // Animation position error mutiplier
+  CHECK_EQ(read_cli_args_with_dummy_and(
+               "--animation-position-error-multipler=0.666"sv)
+               ->convertOptions.animation_position_error_multipler,
+           doctest::Approx(0.666));
+}
+
+{ // Animation scale error mutiplier
+  CHECK_EQ(
+      read_cli_args_with_dummy_and("--animation-scale-error-multipler=0.666"sv)
+          ->convertOptions.animation_scale_error_multipler,
+      doctest::Approx(0.666));
 }
 
 { // --export-fbx-file-header-info

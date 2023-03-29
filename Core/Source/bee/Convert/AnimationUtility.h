@@ -81,7 +81,7 @@ public:
   std::vector<double> times;
   std::vector<Ty> values;
 
-  void reduceLinearKeys(double epsilon_ = defaultEplislon) {
+  void reduceLinearKeys(double epsilon_) {
     std::vector<double> newTimes;
     std::vector<Ty> newValues;
     const auto &originalTimes = times;
