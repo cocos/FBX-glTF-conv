@@ -278,6 +278,10 @@ private:
                             : v_;
   }
 
+  inline auto _applyUnitScaleFactor(fbxsdk::FbxDouble v_) const {
+    return _unitScaleFactor ? v_ * *_unitScaleFactor : v_;
+  }
+
   /// <summary>
   /// Prefer std::u8string_view overloading.
   /// </summary>

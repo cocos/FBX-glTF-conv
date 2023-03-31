@@ -449,7 +449,8 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     }
   }
 
-  translations.reduceLinearKeys(_options.animation_position_error_multiplier);
+  translations.reduceLinearKeys(
+      _applyUnitScaleFactor(_options.animation_position_error_multiplier));
   rotations.reduceLinearKeys(defaultEplislon);
   scales.reduceLinearKeys(_options.animation_scale_error_multiplier);
 
