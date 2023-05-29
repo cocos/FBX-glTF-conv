@@ -510,7 +510,8 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
   }
 
   {
-    using IndexUnit = GLTFComponentTypeStorage<fx::gltf::Accessor::ComponentType::UnsignedInt>;
+    using IndexUnit = GLTFComponentTypeStorage<
+        fx::gltf::Accessor::ComponentType::UnsignedInt>;
     // Check if index data can be stored using 16-bit integers
     auto useUint16 =
         std::all_of(indices_.begin(), indices_.end(), [](auto index) {
@@ -522,16 +523,18 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
             : static_cast<std::uint32_t>(indices_.size() * sizeof(uint32_t)),
         0, 0);
     if (useUint16) {
-        std::transform( indices_.begin(), indices_.end(),
-                        reinterpret_cast<std::uint16_t *>(bufferViewData),
-                        [](auto val) { return static_cast<std::uint16_t>(val); });
+      std::transform(indices_.begin(), indices_.end(),
+                     reinterpret_cast<std::uint16_t *>(bufferViewData),
+                     [](auto val) { return static_cast<std::uint16_t>(val); });
     } else {
-        std::transform(indices_.begin(), indices_.end(),
-                        reinterpret_cast<std::uint32_t *>(bufferViewData),
-                        [](auto val) { return static_cast<std::uint32_t>(val); });
+      std::transform(indices_.begin(), indices_.end(),
+                     reinterpret_cast<std::uint32_t *>(bufferViewData),
+                     [](auto val) { return static_cast<std::uint32_t>(val); });
     }
     auto &glTFBufferView =
         _glTFBuilder.get(&fx::gltf::Document::bufferViews)[bufferViewIndex];
+    glTFBufferView.target =
+        fx::gltf::BufferView::TargetType::ElementArrayBuffer;
 
     fx::gltf::Accessor glTFAccessor;
     glTFAccessor.name = fmt::format("{0}/INDICES", primitive_name_);
@@ -540,10 +543,12 @@ SceneConverter::_createPrimitive(std::list<VertexBulk> &bulks_,
     glTFAccessor.type = fx::gltf::Accessor::Type::Scalar;
     if (useUint16) {
       // Set the component type to UnsignedShort if possible
-      glTFAccessor.componentType = fx::gltf::Accessor::ComponentType::UnsignedShort;
+      glTFAccessor.componentType =
+          fx::gltf::Accessor::ComponentType::UnsignedShort;
     } else {
       // Otherwise, use UnsignedInt
-      glTFAccessor.componentType = fx::gltf::Accessor::ComponentType::UnsignedInt;
+      glTFAccessor.componentType =
+          fx::gltf::Accessor::ComponentType::UnsignedInt;
     }
 
     auto glTFAccessorIndex = _glTFBuilder.add(&fx::gltf::Document::accessors,
