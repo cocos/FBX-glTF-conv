@@ -371,8 +371,8 @@ SceneConverter::_extractWeightsAnimation(
           const auto rightWeight = std::get<1>(target_shapes_[iRight]);
           const auto ratio =
               (animWeight - leftWeight) / (rightWeight - leftWeight);
-          iFrameWeightsBeg[iLeft] = static_cast<WeightType>(ratio);
-          iFrameWeightsBeg[iRight] = static_cast<WeightType>(1.0 - ratio);
+          iFrameWeightsBeg[iLeft] = static_cast<WeightType>(1.0 - ratio);
+          iFrameWeightsBeg[iRight] = static_cast<WeightType>(ratio);
         }
       };
 
