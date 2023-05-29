@@ -56,10 +56,24 @@ private:
 std::vector<std::byte>
 make_glb(std::string_view json_text_,
          std::optional<std::span<const std::byte>> glb_stored_buffer_) {
+  const auto align = [&](std::uint32_t size_, std::uint32_t as_) {
+    assert(as_ > 0);
+    const auto remainder = size_ % as_;
+    if (remainder != 0) {
+      size_ += (as_ - remainder);
+    }
+    return size_;
+  };
+
+  const auto jsonTextSizeAligned =
+      align(static_cast<std::uint32_t>(json_text_.size()), 4);
+  const auto glbStoredBufferSizeAligned =
+      align(static_cast<std::uint32_t>(glb_stored_buffer_->size()), 4);
+
   // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#binary-gltf-layout
   const auto glbSize =
-      (4 + 4 + 4) + (4 + 4 + json_text_.size()) +
-      (glb_stored_buffer_ ? (4 + 4 + glb_stored_buffer_->size()) : 0);
+      (4 + 4 + 4) + (4 + 4 + jsonTextSizeAligned) +
+      (glb_stored_buffer_ ? (4 + 4 + glbStoredBufferSizeAligned) : 0);
 
   std::vector<std::byte> glb(glbSize, static_cast<std::byte>(0));
   std::vector<std::byte>::size_type p = 0;
@@ -73,18 +87,28 @@ make_glb(std::string_view json_text_,
   writeU32(2u);                                  // version
   writeU32(static_cast<std::uint32_t>(glbSize)); // total size
 
-  writeU32(static_cast<std::uint32_t>(json_text_.size()));
+  writeU32(jsonTextSizeAligned);
   writeU32(0x4E4F534Au); // chunk type: JSON
   std::transform(json_text_.begin(), json_text_.end(), glb.begin() + p,
                  [](char ch_) { return static_cast<std::byte>(ch_); });
-  p += json_text_.size();
+  // >> This chunk MUST be padded with trailing Space chars (0x20) to satisfy
+  // >> alignment requirements.
+  std::fill_n(glb.begin() + p + json_text_.size(),
+              jsonTextSizeAligned - json_text_.size(),
+              static_cast<std::byte>(0x20));
+  p += jsonTextSizeAligned;
 
   if (glb_stored_buffer_) {
-    writeU32(static_cast<std::uint32_t>(glb_stored_buffer_->size()));
+    writeU32(glbStoredBufferSizeAligned);
     writeU32(0x004E4942u); // chunk type: BIN
     std::copy(glb_stored_buffer_->begin(), glb_stored_buffer_->end(),
               glb.begin() + p);
-    p += glb_stored_buffer_->size();
+    // >> This chunk MUST be padded with trailing zeros (0x00) to satisfy
+    // >> alignment requirements.
+    std::fill_n(glb.begin() + p + glb_stored_buffer_->size(),
+                glbStoredBufferSizeAligned - glb_stored_buffer_->size(),
+                static_cast<std::byte>(0x0));
+    p += glbStoredBufferSizeAligned;
   }
 
   assert(p == glb.size() && "Pre-allocation calculating error!");
