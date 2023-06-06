@@ -78,6 +78,8 @@ struct ConvertOptions {
   /// </summary>
   bool prefer_local_time_span = true;
 
+  bool match_mesh_names = true;
+
   float animation_position_error_multiplier = 1e-5f;
 
   float animation_scale_error_multiplier = 1e-5f;

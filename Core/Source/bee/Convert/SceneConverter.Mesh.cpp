@@ -66,9 +66,13 @@ SceneConverter::_convertNodeMeshes(
   std::optional<std::uint32_t> glTFSkinIndex;
 
   fx::gltf::Mesh glTFMesh;
-  auto it = nodeMeshMap.find(&fbx_node_);
-  glTFMesh.name = it == nodeMeshMap.end() ? meshName : it->second;
-
+  if (_options.match_mesh_names) {
+      auto it = nodeMeshMap.find(&fbx_node_);
+      glTFMesh.name = it == nodeMeshMap.end() ? meshName : it->second;
+  } else {
+      glTFMesh.name = meshName;
+  }
+  
   for (decltype(fbx_meshes_.size()) iFbxMesh = 0; iFbxMesh < fbx_meshes_.size();
        ++iFbxMesh) {
     const auto fbxMesh = fbx_meshes_[iFbxMesh];

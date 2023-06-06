@@ -46,6 +46,7 @@ TEST_CASE("Read CLI arguments") {
     CHECK_EQ(u8toexe(convertOptions->fbmDir), "");
     CHECK_EQ(convertOptions->logFile, std::nullopt);
     CHECK_EQ(convertOptions->convertOptions.prefer_local_time_span, true);
+    CHECK_EQ(convertOptions->convertOptions.match_mesh_names, true);
     CHECK_EQ(convertOptions->convertOptions.animationBakeRate, 0);
     CHECK_EQ(convertOptions->convertOptions.animation_position_error_multiplier,
              doctest::Approx(1e-5));
@@ -74,6 +75,12 @@ TEST_CASE("Read CLI arguments") {
 
 {
   std::vector<std::string_view> args{dummyArg0, "--prefer-local-time-span"sv,
+                                     "--"sv, dummyInput};
+  CHECK_EQ(u8toexe(beecli::readCliArgs(args)->inputFile), dummyInput);
+}
+
+{
+  std::vector<std::string_view> args{dummyArg0, "--match-mesh-names"sv,
                                      "--"sv, dummyInput};
   CHECK_EQ(u8toexe(beecli::readCliArgs(args)->inputFile), dummyInput);
 }
@@ -161,6 +168,14 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
   CHECK_EQ(read_cli_args_with_dummy_and("--prefer-local-time-span=false"sv)
                ->convertOptions.prefer_local_time_span,
            false);
+}
+{ 
+  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names"sv)
+ 			  ->convertOptions.match_mesh_names,
+     		  true);
+  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names"sv)
+               ->convertOptions.match_mesh_names,
+               false);
 }
 
 { // Animation Bake Rate

@@ -178,6 +178,11 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       "Prefer local time spans recorded in FBX file for animation "
       "exporting.",
       cxxopts::value<bool>()->default_value("true"));
+  options.add_options()(
+      "match-mesh-names",
+      "Prefer mesh names "
+      "exporting.",
+      cxxopts::value<bool>()->default_value("true"));
 
   options.add_options()(
       "animation-bake-rate", "Animation bake rate(in FPS).",
@@ -288,7 +293,10 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       cliArgs.convertOptions.prefer_local_time_span =
           cliParseResult["prefer-local-time-span"].as<bool>();
     }
-
+    if (cliParseResult.count("match-mesh-names")) {
+	  cliArgs.convertOptions.match_mesh_names =
+		  cliParseResult["match-mesh-names"].as<bool>();
+	}
     if (cliParseResult.count("animation-bake-rate")) {
       cliArgs.convertOptions.animationBakeRate =
           cliParseResult["animation-bake-rate"]
