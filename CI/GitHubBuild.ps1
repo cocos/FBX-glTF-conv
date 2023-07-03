@@ -1,9 +1,13 @@
 #Requires -Version "6.1"
 
 param (
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [string]
-    $ArtifactPath
+    $ArtifactPath,
+
+    [Parameter(Mandatory=$false)]
+    [switch]
+    $IncludeDebug = $False
 )
 
 $is64BitOperatingSystem = [System.Environment]::Is64BitOperatingSystem
@@ -15,12 +19,8 @@ IsLinux: $IsLinux
 Is64BitOperatingSystem: $is64BitOperatingSystem
 Current working directory: $(Get-Location)
 ArtifactPath: $ArtifactPath
+IncludeDebug: $IncludeDebug
 "@
-
-# New-Item -ItemType Directory -Path "artifacts"
-# "Hello2!" | Out-File "artifacts/Hello.txt"
-# Compress-Archive -Path "artifacts/*" -DestinationPath $ArtifactPath
-# exit 0
 
 function InstallVcpkg {
     git clone https://github.com/microsoft/vcpkg | Out-Host
@@ -115,7 +115,12 @@ InstallDependencies
 
 $cmakeInstallPrefix = "out/install"
 
-foreach ($cmakeBuildType in @("Debug", "Release")) {
+$cmakeBuildTypes = @("Release")
+if ($IncludeDebug) {
+    $cmakeBuildTypes += "Debug"
+}
+
+foreach ($cmakeBuildType in $cmakeBuildTypes) {
     Write-Host "Build $cmakeBuildType ..."
     $cmakeBuildDir = "out/build/$cmakeBuildType"
 
@@ -150,4 +155,6 @@ if (((Test-Path $cmakeInstallPrefix) -eq $false) -or ((Get-Item $cmakeInstallPre
     exit -1
 }
 
-Compress-Archive -Path "$cmakeInstallPrefix\*" -DestinationPath $ArtifactPath
+if ($ArtifactPath) {
+    Compress-Archive -Path "$cmakeInstallPrefix\*" -DestinationPath $ArtifactPath
+}
