@@ -1,0 +1,22 @@
+name: Release
+
+on: [pull_request]
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout
+  
+      - name: Build
+        shell: pwsh
+        run: |
+          CI/GitHubBuild.ps1
+      
+      - name: Run
+        shell: pwsh
+        run: |
+          out/build/x64-Release/Release/FBX-glTF-conv-test.exe
+
