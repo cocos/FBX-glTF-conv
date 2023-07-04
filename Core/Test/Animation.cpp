@@ -4,15 +4,8 @@
 #include <string>
 
 namespace bee {
-template <> struct TrackValueTrait<double> {
-  static bool isEqualApproximately(double a_, double b_, double epsilon_) {
-    return isApproximatelyEqual(a_, b_, epsilon_);
-  }
-
-  static double interpolate(double a_, double b_, double t_) {
-    return std::lerp(a_, b_, t_);
-  }
-};
+// Note: we have already had specificalization for fbx double!
+static_assert(std::is_same_v<fbxsdk::FbxDouble, double>);
 } // namespace bee
 
 using DoubleKeyframe = std::pair<double, double>;

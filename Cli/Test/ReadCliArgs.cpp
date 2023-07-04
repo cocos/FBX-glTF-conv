@@ -3,6 +3,7 @@
 
 #include "ReadCliArgs.h"
 #include <doctest/doctest.h>
+#include <fmt/format.h>
 #include <string>
 
 using namespace std::literals;
@@ -24,6 +25,24 @@ auto read_cli_args_with_dummy_and(std::span<std::string_view> extras_) {
   std::vector<std::string_view> args{dummyArg0, dummyInput};
   args.insert(args.end(), extras_.begin(), extras_.end());
   return beecli::readCliArgs(args);
+}
+
+template <bool bee::ConvertOptions::*option_member_ptr>
+auto test_boolean_arg(std::string_view name_) {
+  CHECK_EQ(
+      read_cli_args_with_dummy_and(fmt::format("--{}", name_))->convertOptions.*
+          option_member_ptr,
+      true);
+
+  CHECK_EQ(read_cli_args_with_dummy_and(fmt::format("--{}=true", name_))
+                   ->convertOptions.*
+               option_member_ptr,
+           true);
+
+  CHECK_EQ(read_cli_args_with_dummy_and(fmt::format("--{}=false", name_))
+                   ->convertOptions.*
+               option_member_ptr,
+           false);
 }
 
 TEST_CASE("Read CLI arguments") {
@@ -80,14 +99,14 @@ TEST_CASE("Read CLI arguments") {
 }
 
 { // CJK, spaces
-  const auto cjkFile = "лл  лл.FBX";
+  const auto cjkFile = "О©╫О©╫  О©╫О©╫.FBX";
   std::vector<std::string_view> args{dummyArg0, cjkFile};
   CHECK_EQ(u8toexe(beecli::readCliArgs(args)->inputFile), cjkFile);
 }
 }
 
 { // Output
-  const auto outFile = "666лл лл.gltf"s;
+  const auto outFile = "666О©╫О©╫ О©╫О©╫.gltf"s;
   CHECK_EQ(u8toexe(read_cli_args_with_dummy_and("--out=" + outFile)->outFile),
            outFile);
 }
@@ -107,17 +126,7 @@ TEST_CASE("Read CLI arguments") {
 }
 
 { // No flip V
-  CHECK_EQ(
-      read_cli_args_with_dummy_and("--no-flip-v"sv)->convertOptions.noFlipV,
-      true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--no-flip-v=true"sv)
-               ->convertOptions.noFlipV,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--no-flip-v=false"sv)
-               ->convertOptions.noFlipV,
-           false);
+  test_boolean_arg<&bee::ConvertOptions::noFlipV>("no-flip-v");
 }
 
 { // No texture resolution
@@ -151,28 +160,12 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
 }
 
 { // Prefer local time span
-  CHECK_EQ(read_cli_args_with_dummy_and("--prefer-local-time-span"sv)
-               ->convertOptions.prefer_local_time_span,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--prefer-local-time-span=true"sv)
-               ->convertOptions.prefer_local_time_span,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--prefer-local-time-span=false"sv)
-               ->convertOptions.prefer_local_time_span,
-           false);
+  test_boolean_arg<&bee::ConvertOptions::prefer_local_time_span>(
+      "prefer-local-time-span");
 }
-{
-  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names"sv)
-               ->convertOptions.match_mesh_names,
-           true);
-  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names=true"sv)
-               ->convertOptions.match_mesh_names,
-           true);
-  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names=false"sv)
-               ->convertOptions.match_mesh_names,
-           false);
+
+{ // --match-mesh-names
+  test_boolean_arg<&bee::ConvertOptions::match_mesh_names>("match-mesh-names");
 }
 
 { // Animation Bake Rate
@@ -196,50 +189,23 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
 }
 
 { // --export-fbx-file-header-info
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info"sv)
-               ->convertOptions.export_fbx_file_header_info,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info=true"sv)
-               ->convertOptions.export_fbx_file_header_info,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-fbx-file-header-info=false"sv)
-               ->convertOptions.export_fbx_file_header_info,
-           false);
+  test_boolean_arg<&bee::ConvertOptions::export_fbx_file_header_info>(
+      "export-fbx-file-header-info");
 }
 
 { // --export-raw-materials
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials"sv)
-               ->convertOptions.export_raw_materials,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials=true"sv)
-               ->convertOptions.export_raw_materials,
-           true);
-
-  CHECK_EQ(read_cli_args_with_dummy_and("--export-raw-materials=false"sv)
-               ->convertOptions.export_raw_materials,
-           false);
+  test_boolean_arg<&bee::ConvertOptions::export_raw_materials>(
+      "export-raw-materials");
 }
 
 { // Log file
-  const auto fbmDir = "666лл лл"s;
+  const auto fbmDir = "666О©╫О©╫ О©╫О©╫"s;
   CHECK_EQ(u8toexe(read_cli_args_with_dummy_and("--fbm-dir=" + fbmDir)->fbmDir),
            fbmDir);
 }
 
 { // Verbose
-  CHECK_EQ(read_cli_args_with_dummy_and("--verbose"sv)->convertOptions.verbose,
-           true);
-
-  CHECK_EQ(
-      read_cli_args_with_dummy_and("--verbose=true"sv)->convertOptions.verbose,
-      true);
-
-  CHECK_EQ(
-      read_cli_args_with_dummy_and("--verbose=false"sv)->convertOptions.verbose,
-      false);
+  test_boolean_arg<&bee::ConvertOptions::verbose>("verbose");
 }
 
 { // Log file

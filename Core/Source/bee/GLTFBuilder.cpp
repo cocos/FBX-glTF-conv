@@ -1,6 +1,6 @@
 
-#include <cassert>
 #include <bee/GLTFBuilder.h>
+#include <cassert>
 
 namespace bee {
 GLTFBuilder::GLTFBuilder() {
@@ -78,6 +78,17 @@ void GLTFBuilder::useExtension(std::string_view extension_name_) {
       std::find(_glTFDocument.extensionsUsed.cbegin(),
                 _glTFDocument.extensionsUsed.cend(), extName)) {
     _glTFDocument.extensionsUsed.push_back(std::move(extName));
+  }
+}
+void GLTFBuilder::requireExtension(std::string_view extension_name_) {
+  // glTF Validator(UNSATISFIED_DEPENDENCY)
+  useExtension(extension_name_);
+
+  std::string extName{extension_name_};
+  if (_glTFDocument.extensionsRequired.cend() ==
+      std::find(_glTFDocument.extensionsRequired.cbegin(),
+                _glTFDocument.extensionsRequired.cend(), extName)) {
+    _glTFDocument.extensionsRequired.push_back(std::move(extName));
   }
 }
 } // namespace bee

@@ -48,6 +48,20 @@ inline fbxsdk::FbxQuaternion slerp(const fbxsdk::FbxQuaternion &from_,
 
 template <typename Ty> struct TrackValueTrait {};
 
+template <> struct TrackValueTrait<fbxsdk::FbxDouble> {
+  static bool isEqualApproximately(const fbxsdk::FbxDouble &a_,
+                                   const fbxsdk::FbxDouble &b_,
+                                   double epsilon_) {
+    return isApproximatelyEqual(a_, b_, epsilon_);
+  }
+
+  static fbxsdk::FbxDouble interpolate(const fbxsdk::FbxDouble &a_,
+                                       const fbxsdk::FbxDouble &b_,
+                                       double t_) {
+    return lerp(a_, b_, t_);
+  }
+};
+
 template <> struct TrackValueTrait<fbxsdk::FbxVector4> {
   static bool isEqualApproximately(const fbxsdk::FbxVector4 &a_,
                                    const fbxsdk::FbxVector4 &b_,
