@@ -18,5 +18,5 @@ jobs:
       - name: Run
         shell: pwsh
         run: |
-          out/build/x64-Release/Release/FBX-glTF-conv-test.exe
+          out/build/Release/Release/FBX-glTF-conv-test.exe
 
