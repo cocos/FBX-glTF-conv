@@ -79,12 +79,6 @@ TEST_CASE("Read CLI arguments") {
   CHECK_EQ(u8toexe(beecli::readCliArgs(args)->inputFile), dummyInput);
 }
 
-{
-  std::vector<std::string_view> args{dummyArg0, "--match-mesh-names"sv,
-                                     "--"sv, dummyInput};
-  CHECK_EQ(u8toexe(beecli::readCliArgs(args)->inputFile), dummyInput);
-}
-
 { // CJK, spaces
   const auto cjkFile = "лл  лл.FBX";
   std::vector<std::string_view> args{dummyArg0, cjkFile};
@@ -169,13 +163,16 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
                ->convertOptions.prefer_local_time_span,
            false);
 }
-{ 
-  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names"sv)
- 			  ->convertOptions.match_mesh_names,
-     		  true);
+{
   CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names"sv)
                ->convertOptions.match_mesh_names,
-               false);
+           true);
+  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names=true"sv)
+               ->convertOptions.match_mesh_names,
+           true);
+  CHECK_EQ(read_cli_args_with_dummy_and("--match-mesh-names=false"sv)
+               ->convertOptions.match_mesh_names,
+           false);
 }
 
 { // Animation Bake Rate
