@@ -106,6 +106,8 @@ public:
 
   void useExtension(std::string_view extension_name_);
 
+  void requireExtension(std::string_view extension_name_);
+
   template <typename T> struct GLTFDocumentMemberPtrValueType {};
   template <typename T>
   struct GLTFDocumentMemberPtrValueType<T fx::gltf::Document::*> {

@@ -38,7 +38,6 @@ public:
   void convert();
 
 private:
-
   std::map<fbxsdk::FbxNode *, std::string> nodeMeshMap;
 
   struct FbxBlendShapeData {
