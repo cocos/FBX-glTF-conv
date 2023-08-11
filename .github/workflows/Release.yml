@@ -20,7 +20,7 @@ jobs:
         shell: pwsh
         run: |
           #Requires -Version "6.1"
-          $version = ${{ inputs.version }}
+          $version = "${{ inputs.version }}"
           $tagName = "release-v$version"
           $releaseName = "Release $version"
           Write-Host @"
