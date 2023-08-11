@@ -51,16 +51,16 @@ function GetTriplet {
 function InstallFbxSdk {
     New-Item -ItemType Directory -Path "fbxsdk" | Out-Null
     if ($IsWindows) {
-        $FBXSDK_2020_0_1_VS2017 = "https://damassets.autodesk.net/content/dam/autodesk/www/adn/fbx/2020-0-1/fbx202001_fbxsdk_vs2017_win.exe"
+        $fbxSdkUrl = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_vs2019_win.exe"
         $FbxSdkWindowsInstaller = Join-Path "fbxsdk" "fbxsdk.exe"
-        (New-Object System.Net.WebClient).DownloadFile($FBXSDK_2020_0_1_VS2017, $FbxSdkWindowsInstaller)
+        (New-Object System.Net.WebClient).DownloadFile($fbxSdkUrl, $FbxSdkWindowsInstaller)
         $fbxSdkHome = [System.IO.Path]::Combine((Get-Location), "fbxsdk", "Home")
         Start-Process -Wait -FilePath $FbxSdkWindowsInstaller -ArgumentList "/S","/D=$fbxSdkHome"
     } elseif ($IsMacOS) {
-        $FBXSDK_2020_0_1_CLANG = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-0-1/fbx202001_fbxsdk_clang_mac.pkg.tgz"
+        $fbxSdkUrl = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_clang_mac.pkg.tgz"
         $FBXSDK_2020_0_1_CLANG_VERSION = "2020.0.1"
         $fbxSdkMacOSTarball = Join-Path "fbxsdk" "fbxsdk.pkg.tgz"
-        (New-Object System.Net.WebClient).DownloadFile($FBXSDK_2020_0_1_CLANG, $fbxSdkMacOSTarball)
+        (New-Object System.Net.WebClient).DownloadFile($fbxSdkUrl, $fbxSdkMacOSTarball)
         $fbxSdkMacOSPkgFileDir = "fbxsdk"
         & tar -zxvf $fbxSdkMacOSTarball -C $fbxSdkMacOSPkgFileDir | Out-Host
         $fbxSdkMacOSPkgFile = (Get-ChildItem -Path "$fbxSdkMacOSPkgFileDir/*" -Include "*.pkg").FullName
@@ -70,10 +70,10 @@ function InstallFbxSdk {
         # Node gyp incorrectly handle spaces in path
         New-Item -ItemType SymbolicLink -Path "fbxsdk" -Name Home -Value "/Applications/Autodesk/FBX SDK/$FBXSDK_2020_0_1_CLANG_VERSION" | Out-Host
     } elseif ($IsLinux) {
-        $FBXSDK_2020_0_1_LINUX = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-0-1/fbx202001_fbxsdk_linux.tar.gz"
+        $fbxSdkUrl = "https://www.autodesk.com/content/dam/autodesk/www/adn/fbx/2020-2-1/fbx202021_fbxsdk_linux.tar.gz"
         $fbxSdkTarball = Join-Path "fbxsdk" "fbxsdk.tar.gz"
-        Write-Host "Downloading FBX SDK tar ball from $FBXSDK_2020_0_1_LINUX ..."
-        (New-Object System.Net.WebClient).DownloadFile($FBXSDK_2020_0_1_LINUX, $fbxSdkTarball)
+        Write-Host "Downloading FBX SDK tar ball from $fbxSdkUrl ..."
+        (New-Object System.Net.WebClient).DownloadFile($fbxSdkUrl, $fbxSdkTarball)
         $fbxSdkTarballExtractDir = Join-Path "fbxsdk" "tarbar_extract"
         New-Item -ItemType Directory -Path $fbxSdkTarballExtractDir | Out-Null
         Write-Host "Extracting to $fbxSdkTarballExtractDir ..."
