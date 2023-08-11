@@ -1,15 +1,16 @@
 name: Release
 on:
-  push:
-    branches:
-      - master
-      - 'release-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        required: true
+        type: string
 jobs:
   get_release_info_job:
     name: Get Release Info
     runs-on: windows-latest
     outputs:
-      is_release_commit: ${{ steps.get_release_info.outputs.is_release_commit }}
       version: ${{ steps.get_release_info.outputs.version }}
       release_upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
@@ -19,27 +20,17 @@ jobs:
         shell: pwsh
         run: |
           #Requires -Version "6.1"
-          $semverRegex = "([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?"
-          $releaseRegex = "Release ($semverRegex)"
-          $commitMessage = "$(git log --no-merges -1 --oneline)"
-          $releaseMatches = $commitMessage -Match $releaseRegex
-          if (-not $releaseMatches) {
-            Write-Output "::set-output name=is_release_commit::false"
-            exit 0
-          }
-          $version = $Matches[1]
+          $version = ${{ inputs.version }}
           $tagName = "release-v$version"
           $releaseName = "Release $version"
           Write-Host @"
           Version: $version
           Tag Name: $tagName
           "@
-          Write-Output "::set-output name=is_release_commit::true"
           Write-Output "::set-output name=version::$version"
           Write-Output "::set-output name=tag_name::$tagName"
           Write-Output "::set-output name=release_name::$releaseName"
       - id: create_release
-        if: ${{ steps.get_release_info.outputs.is_release_commit == 'true' }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,13 +44,11 @@ jobs:
     name: Release Windows
     runs-on: windows-latest
     needs: get_release_info_job
-    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
     steps:
       - name: Print Debug Info
         shell: pwsh
         run: |
           Write-Host @"
-          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
           Version: ${{ needs.get_release_info_job.outputs.version }}
           Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
           "@
@@ -90,13 +79,11 @@ jobs:
     name: Release MacOS
     runs-on: macos-11
     needs: get_release_info_job
-    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
     steps:
       - name: Print Debug Info
         shell: pwsh
         run: |
           Write-Host @"
-          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
           Version: ${{ needs.get_release_info_job.outputs.version }}
           Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
           "@
@@ -127,13 +114,11 @@ jobs:
     name: Release Ubuntu
     runs-on: ubuntu-latest
     needs: get_release_info_job
-    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
     steps:
       - name: Print Debug Info
         shell: pwsh
         run: |
           Write-Host @"
-          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
           Version: ${{ needs.get_release_info_job.outputs.version }}
           Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
           "@
@@ -164,13 +149,11 @@ jobs:
     name: Release TypeScript Declaration Files
     runs-on: windows-latest
     needs: get_release_info_job
-    if: needs.get_release_info_job.outputs.is_release_commit == 'true'
     steps:
       - name: Print Debug Info
         shell: pwsh
         run: |
           Write-Host @"
-          Is Release Commit: ${{ needs.get_release_info_job.outputs.is_release_commit }}
           Version: ${{ needs.get_release_info_job.outputs.version }}
           Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
           "@
