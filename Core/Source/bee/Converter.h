@@ -139,6 +139,10 @@ struct ConvertOptions {
 
   bool export_blend_shape_animation = true;
 
+  bool use_extension_khr_animation_pointer = false;
+
+  bool export_node_visibility = false;
+
   Logger *logger = nullptr;
 
   bool verbose = false;

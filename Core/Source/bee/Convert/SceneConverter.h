@@ -496,5 +496,10 @@ private:
                             fbxsdk::FbxAnimLayer &fbx_anim_layer_,
                             fbxsdk::FbxNode &fbx_node_,
                             const AnimRange &anim_range_);
+
+  void _extractNonStandardAnimation(fx::gltf::Animation &glTF_animation_,
+                                    fbxsdk::FbxAnimLayer &fbx_anim_layer_,
+                                    fbxsdk::FbxNode &fbx_node_,
+                                    const AnimRange &anim_range_);
 };
 } // namespace bee
