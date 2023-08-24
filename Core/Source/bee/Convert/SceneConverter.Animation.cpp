@@ -2,8 +2,10 @@
 #include <bee/Convert/AnimationUtility.h>
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/DirectSpreader.h>
+#include <bee/Convert/MyExtras.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
+#include <bee/Convert/glTF-extensions/KHR_animation_pointer.h>
 #include <fmt/format.h>
 
 namespace bee {
@@ -198,6 +200,11 @@ void SceneConverter::_convertAnimationLayer(
     _extractWeightsAnimation(glTF_animation_, fbx_anim_layer_, fbx_node_,
                              anim_range_);
   }
+
+  if (_options.use_extension_khr_animation_pointer) {
+    _extractNonStandardAnimation(glTF_animation_, fbx_anim_layer_, fbx_node_,
+                                 anim_range_);
+  }
 }
 
 void SceneConverter::_extractWeightsAnimation(
@@ -284,8 +291,13 @@ void SceneConverter::_writeMorphAnimtion(fx::gltf::Animation &glTF_animation_,
   auto samplerIndex = glTF_animation_.samplers.size();
   glTF_animation_.samplers.emplace_back(std::move(sampler));
   fx::gltf::Animation::Channel channel;
-  channel.target.node = glTF_node_index_;
-  channel.target.path = "weights";
+  if (_options.use_extension_khr_animation_pointer) {
+    channel.target = detail::glTF_extension::khr_animation_pointer::make_target(
+        _glTFBuilder, fmt::format("/nodes/{}/weights", glTF_node_index_));
+  } else {
+    channel.target.node = glTF_node_index_;
+    channel.target.path = "weights";
+  }
   channel.sampler = static_cast<std::int32_t>(samplerIndex);
   glTF_animation_.channels.push_back(channel);
 }
@@ -473,8 +485,14 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
     auto samplerIndex = glTF_animation_.samplers.size();
     glTF_animation_.samplers.emplace_back(std::move(sampler));
     fx::gltf::Animation::Channel channel;
-    channel.target.node = *glTFNodeIndex;
-    channel.target.path = path_;
+    if (_options.use_extension_khr_animation_pointer) {
+      channel.target =
+          detail::glTF_extension::khr_animation_pointer::make_target(
+              _glTFBuilder, fmt::format("/nodes/{}/{}", *glTFNodeIndex, path_));
+    } else {
+      channel.target.node = *glTFNodeIndex;
+      channel.target.path = path_;
+    }
     channel.sampler = static_cast<std::int32_t>(samplerIndex);
     glTF_animation_.channels.push_back(channel);
   };
@@ -501,6 +519,98 @@ void SceneConverter::_extractTrsAnimation(fx::gltf::Animation &glTF_animation_,
                                     fx::gltf::Accessor::ComponentType::Float,
                                     FbxVec3Spreader>(scales.values, 0, 0);
     addChannel(scales, "scale", valueAccessorIndex);
+  }
+}
+
+void SceneConverter::_extractNonStandardAnimation(
+    fx::gltf::Animation &glTF_animation_,
+    fbxsdk::FbxAnimLayer &fbx_anim_layer_,
+    fbxsdk::FbxNode &fbx_node_,
+    const AnimRange &anim_range_) {
+
+  const auto glTFNodeIndex = _getNodeMap(fbx_node_);
+  if (!glTFNodeIndex) {
+    _log(Logger::Level::verbose,
+         fmt::format("{} is not being exported, skip animation on that.",
+                     fbx_node_.GetNameWithNameSpacePrefix()));
+    return;
+  }
+
+  const auto addFloatPropertyAnimation =
+      [&glTF_animation_, &fbx_anim_layer_, &anim_range_,
+       this](fbxsdk::FbxPropertyT<fbxsdk::FbxDouble> &fbx_property_,
+             std::string_view pointer_) -> bool {
+    if (!fbx_property_.IsAnimated(&fbx_anim_layer_)) {
+      return false;
+    }
+
+    Track<fbxsdk::FbxDouble> track;
+    const auto firstTimeDouble = anim_range_.first_frame_seconds();
+    const auto nFrames = anim_range_.frames_count();
+    for (std::remove_const_t<decltype(nFrames)> iFrame = 0; iFrame < nFrames;
+         ++iFrame) {
+      const auto fbxTime = anim_range_.at(iFrame);
+      const auto value = fbx_property_.EvaluateValue(fbxTime);
+      track.add(fbxTime.GetSecondDouble() - firstTimeDouble, value);
+    }
+
+    track.reduceLinearKeys(1e-5);
+
+    {
+      const auto timeAccessorIndex = _glTFBuilder.createAccessor<
+          fx::gltf::Accessor::Type::Scalar,
+          fx::gltf::Accessor::ComponentType::Float,
+          DirectSpreader<typename decltype(track.times)::value_type>>(
+          track.times, 0, 0, true);
+      _glTFBuilder.get(&fx::gltf::Document::accessors)[timeAccessorIndex].name =
+          fmt::format("{}/Input", pointer_);
+
+      const auto valueAccessorIndex =
+          _glTFBuilder.createAccessor<fx::gltf::Accessor::Type::Scalar,
+                                      fx::gltf::Accessor::ComponentType::Float,
+                                      DirectSpreader<fbxsdk::FbxDouble>>(
+              track.values, 0, 0);
+      _glTFBuilder.get(&fx::gltf::Document::accessors)[valueAccessorIndex]
+          .name = fmt::format("{}/Output", pointer_);
+
+      fx::gltf::Animation::Sampler sampler;
+      sampler.input = timeAccessorIndex;
+      sampler.output = valueAccessorIndex;
+      auto samplerIndex = glTF_animation_.samplers.size();
+      glTF_animation_.samplers.emplace_back(std::move(sampler));
+
+      fx::gltf::Animation::Channel channel;
+      channel.target =
+          detail::glTF_extension::khr_animation_pointer::make_target(
+              _glTFBuilder, pointer_);
+      channel.sampler = static_cast<std::int32_t>(samplerIndex);
+      glTF_animation_.channels.push_back(channel);
+    }
+
+    return true;
+  };
+
+  if (_options.export_node_visibility) {
+    const auto exported = addFloatPropertyAnimation(
+        fbx_node_.Visibility,
+        fmt::format("/nodes/{}/extras/{}/{}", *glTFNodeIndex,
+                    detail::my_extras::extras_name,
+                    detail::my_extras::node_extra_key_visibility));
+    if (exported) {
+      // According to
+      // https://github.com/KhronosGroup/glTF/blob/95e28d582382d9564d4ccc5706ae4640d2a14377/extensions/2.0/Khronos/KHR_animation_pointer/README.md
+      // > It is valid, to set the pointer to a property, which is not stored in
+      // > the glTF. This is the case, when the default value is omitted.
+      // > However, the parent object and/or extension must exist.
+      auto &nodes = _glTFBuilder.get(&fx::gltf::Document::nodes);
+      assert(*glTFNodeIndex > 0 && *glTFNodeIndex < nodes.size());
+      auto &node = nodes[*glTFNodeIndex];
+      auto &extra =
+          node.extensionsAndExtras["extras"][detail::my_extras::extras_name];
+      if (extra.is_null()) {
+        extra = Json::object();
+      }
+    }
   }
 }
 } // namespace bee

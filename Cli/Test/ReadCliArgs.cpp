@@ -79,6 +79,9 @@ TEST_CASE("Read CLI arguments") {
              bee::ConvertOptions::UnitConversion::geometryLevel);
     CHECK_EQ(convertOptions->convertOptions.export_fbx_file_header_info, false);
     CHECK_EQ(convertOptions->convertOptions.export_raw_materials, false);
+    CHECK_EQ(convertOptions->convertOptions.use_extension_khr_animation_pointer,
+             false);
+    CHECK_EQ(convertOptions->convertOptions.export_node_visibility, false);
   }
 
   {// Input file
@@ -202,6 +205,16 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
 { // --export-raw-materials
   test_boolean_arg<&bee::ConvertOptions::export_raw_materials>(
       "export-raw-materials");
+}
+
+{ // --extension-khr-animation-pointer
+  test_boolean_arg<&bee::ConvertOptions::use_extension_khr_animation_pointer>(
+      "extension-khr-animation-pointer");
+}
+
+{ // --export-node-visibility
+  test_boolean_arg<&bee::ConvertOptions::export_node_visibility>(
+      "export-node-visibility");
 }
 
 { // Log file

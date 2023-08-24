@@ -70,6 +70,13 @@ getCommandLineArgsU8(int argc_, const char *argv_[]) {
 template <auto MemberPtr> struct ConvertOptionBindingTrait {};
 
 template <>
+struct ConvertOptionBindingTrait<&bee::ConvertOptions::export_node_visibility> {
+  constexpr static auto name = "export-node-visibility";
+  constexpr static auto description = "Export node visibility.";
+  constexpr static auto default_value = "false";
+};
+
+template <>
 struct ConvertOptionBindingTrait<&bee::ConvertOptions::no_mesh_instancing> {
   constexpr static auto name = "no-mesh-instancing";
   constexpr static auto description =
@@ -93,6 +100,15 @@ struct ConvertOptionBindingTrait<
   constexpr static auto name = "animation-scale-error-multiplier";
   constexpr static auto description = "Animation scale error multiplier.";
   constexpr static auto default_value = "1e-5";
+};
+
+template <>
+struct ConvertOptionBindingTrait<
+    &bee::ConvertOptions::use_extension_khr_animation_pointer> {
+  constexpr static auto name = "extension-khr-animation-pointer";
+  constexpr static auto description =
+      "Exports animation using extension KHR-Animation-Pointer";
+  constexpr static auto default_value = "false";
 };
 
 template <auto memberPtr> struct convert_option_binding_helper {};
@@ -202,6 +218,9 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       cxxopts::value<decltype(cliArgs.convertOptions.animationBakeRate)>()
           ->default_value("30"));
 
+  add_cxx_option
+      .template operator()<&bee::ConvertOptions::export_node_visibility>();
+
   add_cxx_option.template
   operator()<&bee::ConvertOptions::animation_position_error_multiplier>();
 
@@ -223,6 +242,11 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
 
   options.add_options()("verbose", "Verbose output.",
                         cxxopts::value<bool>()->default_value("false"));
+
+  // --enable_extension_khr_animation_pointer
+  add_cxx_option.template
+  operator()<&bee::ConvertOptions::use_extension_khr_animation_pointer>();
+
   options.add_options()(
       "log-file",
       "Specify the log file(logs are outputed as JSON). If not "
@@ -311,14 +335,17 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
         .template operator()<&bee::ConvertOptions::no_mesh_instancing>();
 
     if (cliParseResult.count("match-mesh-names")) {
-	  cliArgs.convertOptions.match_mesh_names =
-		  cliParseResult["match-mesh-names"].as<bool>();
-	}
+      cliArgs.convertOptions.match_mesh_names =
+          cliParseResult["match-mesh-names"].as<bool>();
+    }
     if (cliParseResult.count("animation-bake-rate")) {
       cliArgs.convertOptions.animationBakeRate =
           cliParseResult["animation-bake-rate"]
               .as<decltype(cliArgs.convertOptions.animationBakeRate)>();
     }
+
+    fetch_convert_option
+        .template operator()<&bee::ConvertOptions::export_node_visibility>();
 
     fetch_convert_option.template
     operator()<&bee::ConvertOptions::animation_position_error_multiplier>();
@@ -362,6 +389,9 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
         return {};
       }
     }
+
+    fetch_convert_option.template
+    operator()<&bee::ConvertOptions::use_extension_khr_animation_pointer>();
 
     if (cliParseResult.count("verbose")) {
       cliArgs.convertOptions.verbose = cliParseResult["verbose"].as<bool>();
