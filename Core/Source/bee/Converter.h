@@ -80,6 +80,14 @@ struct ConvertOptions {
 
   bool match_mesh_names = true;
 
+  /// <summary>
+  /// Whether to disable mesh instancing.
+  /// </summary>
+  /// <default>
+  /// false
+  /// </default>
+  bool no_mesh_instancing = false;
+
   float animation_position_error_multiplier = 1e-5f;
 
   float animation_scale_error_multiplier = 1e-5f;

@@ -2,6 +2,7 @@
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
+#include <bee/Convert/fbxsdk/String.h>
 #include <bee/UntypedVertex.h>
 #include <fmt/format.h>
 
@@ -48,12 +49,38 @@ SceneConverter::_convertNodeMeshes(
     fbxsdk::FbxNode &fbx_node_) {
   assert(!fbx_meshes_.empty());
 
-  auto meshName = _getName(*fbx_meshes_.front(), fbx_node_);
   auto [vertexTransform, normalTransform] = _getGeometrixTransform(fbx_node_);
   auto vertexTransformX =
       (vertexTransform == fbxsdk::FbxMatrix{}) ? nullptr : &vertexTransform;
   auto normalTransformX =
       (normalTransform == fbxsdk::FbxMatrix{}) ? nullptr : &normalTransform;
+
+  // FBX supports mesh instancing:
+  // See
+  // http://docs.autodesk.com/FBX/2014/ENU/FBX-SDK-Documentation/index.html?url=files/GUID-0D483705-23D9-476D-A567-09609396B190.htm,topicNumber=d30e10223
+  // As the document pointed out:
+  // > a single instance of FbxMesh can be bound to multiple instances of
+  // > FbxNode...
+  // > ...This is called instancing.
+  //
+  // But we have more requirements on that.
+  // A node is consider being instancing a mesh if and only if:
+  // - it has only one mesh bount.
+  // - it does not has any geometrix transform on that.
+  std::optional<decltype(_meshInstanceMap)::key_type> meshInstancingKey;
+  if (!_options.no_mesh_instancing) {
+    if (fbx_meshes_.size() == 1 && (!vertexTransformX && !normalTransformX)) {
+      meshInstancingKey = fbx_meshes_.front();
+    }
+  }
+
+  // If the mesh could be instanced, try to use the instance previously created.
+  if (meshInstancingKey) {
+    const auto iter = _meshInstanceMap.find(*meshInstancingKey);
+    if (iter != _meshInstanceMap.end()) {
+      return iter->second;
+    }
+  }
 
   std::optional<NodeMeshesSkinData> nodeMeshesSkinData;
   nodeMeshesSkinData = _extractNodeMeshesSkinData(fbx_meshes_);
@@ -66,13 +93,18 @@ SceneConverter::_convertNodeMeshes(
   std::optional<std::uint32_t> glTFSkinIndex;
 
   fx::gltf::Mesh glTFMesh;
-  if (_options.match_mesh_names) {
+  if (meshInstancingKey) {
+    glTFMesh.name = fbx_string_to_utf8_checked(fbx_meshes_.front()->GetName());
+  } else {
+    auto meshName = _getName(*fbx_meshes_.front(), fbx_node_);
+    if (_options.match_mesh_names) {
       auto it = nodeMeshMap.find(&fbx_node_);
       glTFMesh.name = it == nodeMeshMap.end() ? meshName : it->second;
-  } else {
+    } else {
       glTFMesh.name = meshName;
+    }
   }
-  
+
   for (decltype(fbx_meshes_.size()) iFbxMesh = 0; iFbxMesh < fbx_meshes_.size();
        ++iFbxMesh) {
     const auto fbxMesh = fbx_meshes_[iFbxMesh];
@@ -89,10 +121,10 @@ SceneConverter::_convertNodeMeshes(
 
     MaterialUsage materialUsage;
     auto glTFPrimitive = _convertMeshAsPrimitive(
-        *fbxMesh, meshName, vertexTransformX, normalTransformX, fbxShapes,
+        *fbxMesh, glTFMesh.name, vertexTransformX, normalTransformX, fbxShapes,
         skinInfluenceChannels, materialUsage);
 
-    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh, fbx_node_)) {
+    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh)) {
       if (auto glTFMaterialIndex =
               _convertMaterial(*fbxMaterial, materialUsage)) {
         glTFPrimitive.material = *glTFMaterialIndex;
@@ -129,12 +161,17 @@ SceneConverter::_convertNodeMeshes(
   myMeta.meshes = fbx_meshes_;
   node_meta_.meshes = myMeta;
 
+  // If the mesh could be instanced, cache the convert result.
+  if (meshInstancingKey) {
+    _meshInstanceMap.emplace(*meshInstancingKey, convertMeshResult);
+  }
+
   return convertMeshResult;
 }
 
 std::string SceneConverter::_getName(fbxsdk::FbxMesh &fbx_mesh_,
                                      fbxsdk::FbxNode &fbx_node_) {
-  auto meshName = std::string{fbx_mesh_.GetName()};
+  auto meshName = fbx_string_to_utf8_checked(fbx_mesh_.GetName());
   if (!meshName.empty()) {
     return meshName;
   } else {
@@ -143,7 +180,7 @@ std::string SceneConverter::_getName(fbxsdk::FbxMesh &fbx_mesh_,
 }
 
 std::tuple<fbxsdk::FbxMatrix, fbxsdk::FbxMatrix>
-SceneConverter::_getGeometrixTransform(fbxsdk::FbxNode &fbx_node_) {
+SceneConverter::_getGeometrixTransform(const fbxsdk::FbxNode &fbx_node_) {
   const auto meshTranslation = fbx_node_.GetGeometricTranslation(
       fbxsdk::FbxNode::EPivotSet::eSourcePivot);
   const auto meshRotation =
@@ -699,8 +736,7 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
 }
 
 fbxsdk::FbxSurfaceMaterial *
-SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_,
-                                      fbxsdk::FbxNode &fbx_node_) {
+SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
   const auto nElementMaterialCount = fbx_mesh_.GetElementMaterialCount();
   if (!nElementMaterialCount) {
     return nullptr;

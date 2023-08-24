@@ -65,6 +65,7 @@ TEST_CASE("Read CLI arguments") {
     CHECK_EQ(u8toexe(convertOptions->fbmDir), "");
     CHECK_EQ(convertOptions->logFile, std::nullopt);
     CHECK_EQ(convertOptions->convertOptions.prefer_local_time_span, true);
+    CHECK_EQ(convertOptions->convertOptions.no_mesh_instancing, false);
     CHECK_EQ(convertOptions->convertOptions.match_mesh_names, true);
     CHECK_EQ(convertOptions->convertOptions.animationBakeRate, 0);
     CHECK_EQ(convertOptions->convertOptions.animation_position_error_multiplier,
@@ -162,6 +163,11 @@ CHECK_EQ(u8toexe(args->convertOptions.textureResolution.locations[0]), "/a"s);
 { // Prefer local time span
   test_boolean_arg<&bee::ConvertOptions::prefer_local_time_span>(
       "prefer-local-time-span");
+}
+
+{ // --no-mesh-instancing
+  test_boolean_arg<&bee::ConvertOptions::no_mesh_instancing>(
+      "no-mesh-instancing");
 }
 
 { // --match-mesh-names

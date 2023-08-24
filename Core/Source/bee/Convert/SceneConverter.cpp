@@ -149,7 +149,6 @@ void SceneConverter::_traverseNodes(FbxNode *node) {
   }
 }
 
-
 void SceneConverter::_announceNodes(const fbxsdk::FbxScene &fbx_scene_) {
   auto rootNode = fbx_scene_.GetRootNode();
   auto nChildren = rootNode->GetChildCount();
@@ -386,6 +385,6 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
 }
 
 std::string SceneConverter::_getName(fbxsdk::FbxNode &fbx_node_) {
-  return fbx_node_.GetName();
+  return fbx_string_to_utf8_checked(fbx_node_.GetName());
 }
 } // namespace bee

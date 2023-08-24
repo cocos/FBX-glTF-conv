@@ -268,6 +268,7 @@ private:
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
   std::optional<fbxsdk::FbxDouble> _unitScaleFactor = 1.0;
+  std::unordered_map<fbxsdk::FbxMesh*, ConvertMeshResult> _meshInstanceMap;
 
   inline fbxsdk::FbxVector4
   _applyUnitScaleFactorV3(const fbxsdk::FbxVector4 &v_) const {
@@ -330,7 +331,7 @@ private:
   std::string _getName(fbxsdk::FbxMesh &fbx_mesh_, fbxsdk::FbxNode &fbx_node_);
 
   std::tuple<fbxsdk::FbxMatrix, fbxsdk::FbxMatrix>
-  _getGeometrixTransform(fbxsdk::FbxNode &fbx_node_);
+  _getGeometrixTransform(const fbxsdk::FbxNode &fbx_node_);
 
   fx::gltf::Primitive _convertMeshAsPrimitive(
       fbxsdk::FbxMesh &fbx_mesh_,
@@ -357,8 +358,7 @@ private:
   std::list<VertexBulk>
   _typeVertices(const FbxMeshVertexLayout &vertex_layout_);
 
-  fbxsdk::FbxSurfaceMaterial *_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_,
-                                                    fbxsdk::FbxNode &fbx_node_);
+  fbxsdk::FbxSurfaceMaterial *_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_);
 
   /// <summary>
   /// Things get even more complicated if there are more than one mesh attached to a node.
