@@ -70,6 +70,16 @@ getCommandLineArgsU8(int argc_, const char *argv_[]) {
 template <auto MemberPtr> struct ConvertOptionBindingTrait {};
 
 template <>
+struct ConvertOptionBindingTrait<&bee::ConvertOptions::no_mesh_instancing> {
+  constexpr static auto name = "no-mesh-instancing";
+  constexpr static auto description =
+      "Whether to disable mesh instancing. "
+      "By default, if a mesh is shared by multi nodes. They reference to the "
+      "same mesh.";
+  constexpr static auto default_value = "false";
+};
+
+template <>
 struct ConvertOptionBindingTrait<
     &bee::ConvertOptions::animation_position_error_multiplier> {
   constexpr static auto name = "animation-position-error-multiplier";
@@ -178,6 +188,10 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       "Prefer local time spans recorded in FBX file for animation "
       "exporting.",
       cxxopts::value<bool>()->default_value("true"));
+
+  add_cxx_option
+      .template operator()<&bee::ConvertOptions::no_mesh_instancing>();
+
   options.add_options()("match-mesh-names",
                         "Prefer mesh names "
                         "exporting.",
@@ -292,6 +306,10 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
       cliArgs.convertOptions.prefer_local_time_span =
           cliParseResult["prefer-local-time-span"].as<bool>();
     }
+
+    fetch_convert_option
+        .template operator()<&bee::ConvertOptions::no_mesh_instancing>();
+
     if (cliParseResult.count("match-mesh-names")) {
 	  cliArgs.convertOptions.match_mesh_names =
 		  cliParseResult["match-mesh-names"].as<bool>();
