@@ -7,11 +7,11 @@ param (
 
     [Parameter(Mandatory=$false)]
     [switch]
-    $IncludeDebug = $False
+    $IncludeDebug = $False,
 
     [Parameter(Mandatory=$false)]
     [string]
-    $Version = "",
+    $Version = ""
 )
 
 $is64BitOperatingSystem = [System.Environment]::Is64BitOperatingSystem
