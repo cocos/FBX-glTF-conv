@@ -10,7 +10,7 @@
 #endif
 #include <algorithm>
 #include <bee/polyfills/filesystem.h>
-#include <format>
+#include <fmt/format.h>
 #include <optional>
 
 #ifndef FBX_GLTF_CONV_CLI_VERSION
@@ -162,7 +162,7 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
 
   cxxopts::Options options{"FBX-glTF-conv",
                            "This is a FBX to glTF file format converter. \n" +
-                               std::format("Version: {}", version_string.empty() ? "UNKNOWN" : version_string)};
+                               fmt::format("Version: {}", version_string.empty() ? "UNKNOWN" : version_string)};
   options.positional_help("<path-to-FBX-file>");
 
   const auto add_cxx_option = [&options, &cliArgs ]<auto memberPtr>() {
