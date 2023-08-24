@@ -8,6 +8,10 @@ param (
     [Parameter(Mandatory=$false)]
     [switch]
     $IncludeDebug = $False
+
+    [Parameter(Mandatory=$false)]
+    [string]
+    $Version = "",
 )
 
 $is64BitOperatingSystem = [System.Environment]::Is64BitOperatingSystem
@@ -20,6 +24,7 @@ Is64BitOperatingSystem: $is64BitOperatingSystem
 Current working directory: $(Get-Location)
 ArtifactPath: $ArtifactPath
 IncludeDebug: $IncludeDebug
+Version: $Version
 "@
 
 function InstallVcpkg {
@@ -130,12 +135,15 @@ foreach ($cmakeBuildType in $cmakeBuildTypes) {
         $polyfillsStdFileSystem = "ON"
     }
 
+    $defineVersion = if ($Version) { "-DFBX_GLTF_CONV_CLI_VERSION=$Version" } else { "" }
+
     cmake `
     -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
     "-DCMAKE_BUILD_TYPE=$cmakeBuildType" `
     -DCMAKE_INSTALL_PREFIX="$cmakeInstallPrefix/$cmakeBuildType" `
     -DFbxSdkHome:STRING="$fbxSdkHome" `
     "-DPOLYFILLS_STD_FILESYSTEM=$polyfillsStdFileSystem" `
+    "$defineVersion" `
     "-S." `
     "-B$cmakeBuildDir"
 

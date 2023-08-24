@@ -6,3 +6,7 @@ AllowShortFunctionsOnASingleLine: false
 CommentPragmas:  '^/ .+'
 
 BinPackParameters: false
+
+ColumnLimit: 0
+
+IndentPPDirectives: AfterHash
