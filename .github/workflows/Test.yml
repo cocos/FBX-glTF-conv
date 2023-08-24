@@ -15,7 +15,12 @@ jobs:
         run: |
           CI/GitHubBuild.ps1
       
-      - name: Run
+      - name: Run Core Test
+        shell: pwsh
+        run: |
+          out/build/Release/Release/FBX-glTF-conv-core-test.exe
+
+      - name: Run CLI Test
         shell: pwsh
         run: |
           out/build/Release/Release/FBX-glTF-conv-test.exe

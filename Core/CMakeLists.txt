@@ -155,6 +155,7 @@ if (NOT APPLE) # FIXME: iconv is not found on GitHub macOS release flow
     target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Polyfills/nlohmann-json")
     target_include_directories (FBX-glTF-conv-core-test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../Core/fx/include")
     target_link_libraries (FBX-glTF-conv-core-test PUBLIC BeeCore)
+    target_link_libraries(FBX-glTF-conv-core-test PRIVATE fmt::fmt fmt::fmt-header-only)
     if (APPLE)
         find_library (CF_FRAMEWORK CoreFoundation)
         message("CoreFoundation Framework: ${CF_FRAMEWORK}")
