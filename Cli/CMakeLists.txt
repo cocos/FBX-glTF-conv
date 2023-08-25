@@ -27,6 +27,8 @@ target_link_libraries (FBX-glTF-conv-lib PUBLIC BeeCore)
 find_package(cxxopts CONFIG REQUIRED)
 target_link_libraries(FBX-glTF-conv-lib PUBLIC cxxopts::cxxopts)
 
+target_link_libraries(FBX-glTF-conv-lib PRIVATE fmt::fmt-header-only)
+
 #[[
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(BeeCore PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
@@ -43,6 +45,7 @@ add_executable (FBX-glTF-conv "${CMAKE_CURRENT_LIST_DIR}/Cli.cpp")
 set_target_properties (FBX-glTF-conv PROPERTIES CXX_STANDARD 20)
 
 target_link_libraries(FBX-glTF-conv PRIVATE FBX-glTF-conv-lib)
+target_link_libraries(FBX-glTF-conv PRIVATE fmt::fmt-header-only)
 
 # Set @rpath so executable can find .dylib/.so
 # See https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling#recommendations
@@ -70,4 +73,4 @@ target_include_directories(FBX-glTF-conv-test PRIVATE ${DOCTEST_INCLUDE_DIR})
 target_include_directories (FBX-glTF-conv-test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(FBX-glTF-conv-test PRIVATE doctest::doctest)
 target_link_libraries (FBX-glTF-conv-test PRIVATE FBX-glTF-conv-lib)
-target_link_libraries(FBX-glTF-conv-test PRIVATE fmt::fmt fmt::fmt-header-only)
+target_link_libraries(FBX-glTF-conv-test PRIVATE fmt::fmt-header-only)
