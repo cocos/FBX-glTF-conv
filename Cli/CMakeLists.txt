@@ -29,6 +29,11 @@ target_link_libraries(FBX-glTF-conv-lib PUBLIC cxxopts::cxxopts)
 
 target_link_libraries(FBX-glTF-conv-lib PRIVATE fmt::fmt-header-only)
 
+if (FBX_GLTF_CONV_CLI_VERSION)
+    message (STATUS "Tagged version: ${FBX_GLTF_CONV_CLI_VERSION}")
+    target_compile_definitions (FBX-glTF-conv-lib PRIVATE FBX_GLTF_CONV_CLI_VERSION=${FBX_GLTF_CONV_CLI_VERSION})
+endif ()
+
 #[[
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(BeeCore PRIVATE nlohmann_json nlohmann_json::nlohmann_json)
