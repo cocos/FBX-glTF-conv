@@ -1,4 +1,5 @@
 
+#include <algorithm>
 #include <bee/Convert/fbxsdk/MeshInstancingKey.h>
 #include <ranges>
 
