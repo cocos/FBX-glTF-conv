@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
-#include <ranges>
+#include <range/v3/all.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -10,7 +10,7 @@
 namespace bee {
 namespace {
 void collect_meshes(fbxsdk::FbxNode &node_, std::unordered_set<fbxsdk::FbxMesh *> &result_) {
-  for (const auto iNodeAttribute : std::ranges::iota_view(0, node_.GetNodeAttributeCount())) {
+  for (const auto iNodeAttribute : ranges::iota_view(0, node_.GetNodeAttributeCount())) {
     const auto nodeAttribute = node_.GetNodeAttributeByIndex(iNodeAttribute);
     switch (const auto attributeType = nodeAttribute->GetAttributeType()) {
     case fbxsdk::FbxNodeAttribute::EType::eMesh:
@@ -24,7 +24,7 @@ void collect_meshes(fbxsdk::FbxNode &node_, std::unordered_set<fbxsdk::FbxMesh *
 
 void collect_meshes_recurse(fbxsdk::FbxNode &node_, std::unordered_set<fbxsdk::FbxMesh *> &result_) {
   collect_meshes(node_, result_);
-  for (const auto iChild : std::ranges::iota_view(0, node_.GetChildCount())) {
+  for (const auto iChild : ranges::iota_view(0, node_.GetChildCount())) {
     collect_meshes_recurse(*node_.GetChild(iChild), result_);
   }
 }
@@ -60,7 +60,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
 
     {
       std::vector<fbxsdk::FbxMesh *> removed;
-      std::ranges::copy_if(
+      ranges::copy_if(
           meshesOnThisNodeBefore,
           std::back_inserter(removed),
           [&meshesOnThisNodeAfter](auto mesh_) { return meshesOnThisNodeAfter.find(mesh_) == meshesOnThisNodeAfter.end(); });
@@ -75,7 +75,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     //  }
 
     std::vector<fbxsdk::FbxMesh *> newlyAdded;
-    std::ranges::copy_if(
+    ranges::copy_if(
         meshesOnThisNodeAfter,
         std::back_inserter(newlyAdded),
         [&meshesOnThisNodeBefore](auto mesh_) { return meshesOnThisNodeBefore.find(mesh_) == meshesOnThisNodeBefore.end(); });
@@ -87,9 +87,9 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     for (const auto split : newlyAdded) {
       split->SetName(mesh->GetName());
       for (const auto node :
-           std::views::iota(0, split->GetNodeCount()) |
-               std::views::reverse |
-               std::views::transform([split](auto i_) { return split->GetNode(i_); })) {
+           ranges::views::iota(0, split->GetNodeCount()) |
+               ranges::views::reverse |
+               ranges::views::transform([split](auto i_) { return split->GetNode(i_); })) {
         node->RemoveNodeAttribute(split);
       }
       result.emplace(mesh, split);

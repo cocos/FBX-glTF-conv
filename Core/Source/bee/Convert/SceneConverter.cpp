@@ -5,7 +5,7 @@
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <fmt/format.h>
-#include <ranges>
+#include <range/v3/all.hpp>
 
 namespace bee {
 /// <summary>
@@ -382,9 +382,9 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
     for (const auto mesh : fbxMeshes) {
       const auto splitted = _splitMeshesResult.equal_range(mesh);
       if (splitted.first != splitted.second) {
-        std::ranges::copy(
-            std::ranges::subrange(splitted.first, splitted.second) |
-                std::views::transform([](auto kv_) { return std::get<1>(kv_); }),
+        ranges::copy(
+            ranges::subrange(splitted.first, splitted.second) |
+                ranges::views::transform([](auto kv_) { return std::get<1>(kv_); }),
             std::back_inserter(splittedMeshes));
       } else {
         splittedMeshes.push_back(mesh);

@@ -5,7 +5,7 @@
 #include <bee/Convert/fbxsdk/String.h>
 #include <bee/UntypedVertex.h>
 #include <fmt/format.h>
-#include <ranges>
+#include <range/v3/all.hpp>
 
 namespace bee {
 /// <summary>
@@ -175,26 +175,26 @@ std::string SceneConverter::_makeMeshName(const std::vector<fbxsdk::FbxMesh *> &
   assert(!fbx_meshes_.empty());
 
   std::vector<std::string> parts;
-  std::ranges::copy(
-      std::views::all(fbx_meshes_) |
-          std::views::transform([](auto mesh_) { // To UTF8
+  ranges::copy(
+      ranges::views::all(fbx_meshes_) |
+          ranges::views::transform([](auto mesh_) { // To UTF8
             return fbx_string_to_utf8_checked(mesh_->GetName());
           }) |
-          std::views::filter([](const auto &name_) { return !name_.empty(); }), // Remove empties
+          ranges::views::filter([](const auto &name_) { return !name_.empty(); }), // Remove empties
       std::back_inserter(parts));
 
   // Sort
-  std::ranges::sort(parts, [](const auto &name1_, const auto &name2_) { return name1_ < name2_; });
+  ranges::sort(parts, [](const auto &name1_, const auto &name2_) { return name1_ < name2_; });
 
   // Dedup
   {
-    const auto [first, last] = std::ranges::unique(parts);
-    parts.erase(first, last);
+    const auto last = std::unique(parts.begin(), parts.end());
+    parts.erase(last, parts.end());
   }
 
   const auto result = std::accumulate(
-      std::ranges::begin(parts),
-      std::ranges::end(parts),
+      ranges::begin(parts),
+      ranges::end(parts),
       std::string{},
       [](std::string &&result_, const std::string &part_) {
         return result_.empty() ? part_ : (result_ + ", " + part_);

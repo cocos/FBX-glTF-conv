@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <fmt/format.h>
 #include <fx/gltf.h>
-#include <ranges>
+#include <range/v3/all.hpp>
 #include <string>
 #include <string_view>
 
@@ -201,7 +201,7 @@ void testIndexUnit(const char *path_,
 
 const auto get_gltf_node_by_name = [](const fx::gltf::Document &gltf_document_,
                                       std::string_view name_) -> const fx::gltf::Node & {
-  const auto rNode = std::ranges::find_if(
+  const auto rNode = ranges::find_if(
       gltf_document_.nodes,
       [name_](const auto &node_) { return node_.name == name_; });
   CHECK_NE(rNode, gltf_document_.nodes.end());
@@ -210,10 +210,10 @@ const auto get_gltf_node_by_name = [](const fx::gltf::Document &gltf_document_,
 
 const auto count_gltf_mesh_references = [](const fx::gltf::Document &gltf_document_,
                                            int mesh_index_) {
-  return std::ranges::count_if(gltf_document_.nodes,
-                               [mesh_index_](const auto &node_) {
-                                 return node_.mesh == mesh_index_;
-                               });
+  return ranges::count_if(gltf_document_.nodes,
+                          [mesh_index_](const auto &node_) {
+                            return node_.mesh == mesh_index_;
+                          });
 };
 
 TEST_CASE("Mesh") {
@@ -279,7 +279,7 @@ TEST_CASE("Mesh") {
         [&cases](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
           const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
 
-          for (const auto iCase : std::views::iota(0u, cases.size())) {
+          for (const auto iCase : ranges::views::iota(0u, cases.size())) {
             const auto &theCase = cases[iCase];
             const auto nodeName = fmt::format("node-{}", iCase);
             const auto node = fbxsdk::FbxNode::Create(scene, nodeName.c_str());
@@ -297,7 +297,7 @@ TEST_CASE("Mesh") {
     const auto result = bee::_convert_test(fixture.path().u8string(), options);
 
     CHECK_EQ(result.document().nodes.size(), cases.size());
-    for (const auto iCase : std::views::iota(0u, cases.size())) {
+    for (const auto iCase : ranges::views::iota(0u, cases.size())) {
       const auto &theCase = cases[iCase];
       const auto nodeName = fmt::format("node-{}", iCase);
       const auto &node = get_gltf_node_by_name(result.document(), nodeName);
@@ -445,7 +445,7 @@ TEST_CASE("Mesh") {
               CHECK_UNARY(node->AddNodeAttribute(exclusiveMesh));
             }
 
-            for (const auto i : std::views::iota(0, 2)) {
+            for (const auto i : ranges::views::iota(0, 2)) {
               const auto node =
                   fbxsdk::FbxNode::Create(scene, fmt::format("node{}-ref-to-shared-mesh-with-diff-material", i).c_str());
               CHECK_UNARY(scene->GetRootNode()->AddChild(node));
@@ -490,7 +490,7 @@ TEST_CASE("Mesh") {
         CHECK_EQ(mesh.name, "some-exclusive-mesh, some-shared-mesh");
       }
 
-      for (const auto i : std::views::iota(0, 2)) {
+      for (const auto i : ranges::views::iota(0, 2)) {
         const auto &node =
             get_gltf_node_by_name(result.document(), fmt::format("node{}-ref-to-shared-mesh-with-diff-material", i));
         CHECK_GE(node.mesh, 0);
@@ -538,9 +538,9 @@ TEST_CASE("Mesh") {
 
           auto materials = std::vector<fbxsdk::FbxSurfaceMaterial *>{};
           materials.reserve(2);
-          std::ranges::copy(
-              std::views::iota(0, 2) |
-                  std::views::transform([&manager_](auto index_) -> fbxsdk::FbxSurfaceMaterial * {
+          ranges::copy(
+              ranges::views::iota(0, 2) |
+                  ranges::views::transform([&manager_](auto index_) -> fbxsdk::FbxSurfaceMaterial * {
                     return fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", index_).c_str());
                   }),
               std::back_inserter(materials));
@@ -562,7 +562,7 @@ TEST_CASE("Mesh") {
           mesh->AddPolygon(3);
           mesh->EndPolygon();
 
-          for (const auto i : std::views::iota(0, 2)) {
+          for (const auto i : ranges::views::iota(0, 2)) {
             const auto node =
                 fbxsdk::FbxNode::Create(scene, fmt::format("node{}-ref-to-shared-mesh", i).c_str());
             CHECK_UNARY(scene->GetRootNode()->AddChild(node));
@@ -587,7 +587,7 @@ TEST_CASE("Mesh") {
       CHECK_EQ(mesh.primitives.size(), 2);
     }
 
-    for (const auto i : std::views::iota(0, 2)) {
+    for (const auto i : ranges::views::iota(0, 2)) {
       const auto &node =
           get_gltf_node_by_name(result.document(), fmt::format("node{}-ref-to-shared-mesh", i));
     }
