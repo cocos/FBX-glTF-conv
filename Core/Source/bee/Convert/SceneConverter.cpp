@@ -384,7 +384,7 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
       if (splitted.first != splitted.second) {
         std::ranges::copy(
             std::ranges::subrange(splitted.first, splitted.second) |
-                std::views::values,
+                std::views::transform([](auto kv_) { return std::get<1>(kv_); }),
             std::back_inserter(splittedMeshes));
       } else {
         splittedMeshes.push_back(mesh);
