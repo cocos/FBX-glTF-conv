@@ -62,7 +62,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
       std::vector<fbxsdk::FbxMesh *> removed;
       ranges::copy_if(
           meshesOnThisNodeBefore,
-          std::back_inserter(removed),
+          ranges::back_inserter(removed),
           [&meshesOnThisNodeAfter](auto mesh_) { return meshesOnThisNodeAfter.find(mesh_) == meshesOnThisNodeAfter.end(); });
       assert(removed.empty() && "fbxsdk did something wrong?");
     }
@@ -77,7 +77,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     std::vector<fbxsdk::FbxMesh *> newlyAdded;
     ranges::copy_if(
         meshesOnThisNodeAfter,
-        std::back_inserter(newlyAdded),
+        ranges::back_inserter(newlyAdded),
         [&meshesOnThisNodeBefore](auto mesh_) { return meshesOnThisNodeBefore.find(mesh_) == meshesOnThisNodeBefore.end(); });
     if (newlyAdded.empty()) {
       assert(meshesOnThisNodeBefore == meshesOnThisNodeAfter && "fbxsdk did something wrong?");

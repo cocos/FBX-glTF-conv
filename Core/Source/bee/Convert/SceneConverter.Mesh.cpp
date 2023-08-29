@@ -181,7 +181,7 @@ std::string SceneConverter::_makeMeshName(const std::vector<fbxsdk::FbxMesh *> &
             return fbx_string_to_utf8_checked(mesh_->GetName());
           }) |
           ranges::views::filter([](const auto &name_) { return !name_.empty(); }), // Remove empties
-      std::back_inserter(parts));
+      ranges::back_inserter(parts));
 
   // Sort
   ranges::sort(parts, [](const auto &name1_, const auto &name2_) { return name1_ < name2_; });

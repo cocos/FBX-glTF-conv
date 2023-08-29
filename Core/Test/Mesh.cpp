@@ -543,7 +543,7 @@ TEST_CASE("Mesh") {
                   ranges::views::transform([&manager_](auto index_) -> fbxsdk::FbxSurfaceMaterial * {
                     return fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", index_).c_str());
                   }),
-              std::back_inserter(materials));
+              ranges::back_inserter(materials));
 
           const auto mesh =
               fbxsdk::FbxMesh::Create(scene, "some-multiple-materials-sharing-mesh");

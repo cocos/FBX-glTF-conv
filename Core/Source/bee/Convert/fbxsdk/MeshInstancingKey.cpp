@@ -10,6 +10,6 @@ MeshInstancingKey::MeshInstancingKey(
     : _meshes(std::move(meshes_)) {
   ranges::copy(ranges::views::iota(0, node_.GetMaterialCount()) |
                    ranges::views::transform([&node_](auto index_) { return node_.GetMaterial(index_); }),
-               std::back_inserter(_nodeMaterials));
+               ranges::back_inserter(_nodeMaterials));
 }
 } // namespace bee
