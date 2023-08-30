@@ -68,7 +68,7 @@ SceneConverter::_convertNodeMeshes(
   // - it has only one mesh bount.
   // - it does not has any geometrix transform on that.
   std::optional<decltype(_meshInstanceMap)::key_type> meshInstancingKey;
-  if (!_options.no_mesh_instancing) {
+  if (_options.preserve_mesh_instances) {
     if (fbx_meshes_.size() == 1 && (!vertexTransformX && !normalTransformX)) {
       meshInstancingKey = fbx_meshes_.front();
     }
