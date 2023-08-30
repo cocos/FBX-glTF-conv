@@ -144,7 +144,7 @@ int main(int argc_, const char *argv_[]) {
 
   if (std::holds_alternative<beecli::VersionCommand>(*parsedCommand)) {
     const auto &command = std::get<beecli::VersionCommand>(*parsedCommand);
-    std::cout << beecli::version_string << std::endl;
+    std::cout << beecli::version_string << std::flush;
     return 0;
   }
 
