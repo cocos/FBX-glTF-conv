@@ -5,6 +5,7 @@
 #include <bee/Convert/fbxsdk/String.h>
 #include <bee/UntypedVertex.h>
 #include <fmt/format.h>
+#include <range/v3/all.hpp>
 
 namespace bee {
 /// <summary>
@@ -41,7 +42,6 @@ makeUntypedVertexCopyN(std::size_t n_) {
     }
   };
 }
-
 std::optional<SceneConverter::ConvertMeshResult>
 SceneConverter::_convertNodeMeshes(
     FbxNodeDumpMeta &node_meta_,
@@ -69,8 +69,8 @@ SceneConverter::_convertNodeMeshes(
   // - it does not has any geometrix transform on that.
   std::optional<decltype(_meshInstanceMap)::key_type> meshInstancingKey;
   if (_options.preserve_mesh_instances) {
-    if (fbx_meshes_.size() == 1 && (!vertexTransformX && !normalTransformX)) {
-      meshInstancingKey = fbx_meshes_.front();
+    if ((!vertexTransformX && !normalTransformX)) {
+      meshInstancingKey.emplace(std::unordered_set<fbxsdk::FbxMesh *>{fbx_meshes_.begin(), fbx_meshes_.end()}, fbx_node_);
     }
   }
 
@@ -93,8 +93,8 @@ SceneConverter::_convertNodeMeshes(
   std::optional<std::uint32_t> glTFSkinIndex;
 
   fx::gltf::Mesh glTFMesh;
-  if (meshInstancingKey) {
-    glTFMesh.name = fbx_string_to_utf8_checked(fbx_meshes_.front()->GetName());
+  if (_options.preserve_mesh_instances) {
+    glTFMesh.name = _makeMeshName(fbx_meshes_);
   } else {
     auto meshName = _getName(*fbx_meshes_.front(), fbx_node_);
     if (_options.match_mesh_names) {
@@ -124,10 +124,12 @@ SceneConverter::_convertNodeMeshes(
         *fbxMesh, glTFMesh.name, vertexTransformX, normalTransformX, fbxShapes,
         skinInfluenceChannels, materialUsage);
 
-    if (auto fbxMaterial = _getTheUniqueMaterial(*fbxMesh)) {
-      if (auto glTFMaterialIndex =
-              _convertMaterial(*fbxMaterial, materialUsage)) {
-        glTFPrimitive.material = *glTFMaterialIndex;
+    if (const auto fbxMaterialIndex = _getTheUniqueMaterial(*fbxMesh); fbxMaterialIndex >= 0) {
+      if (const auto fbxMaterial = fbx_node_.GetMaterial(fbxMaterialIndex)) {
+        if (const auto glTFMaterialIndex =
+                _convertMaterial(*fbxMaterial, materialUsage)) {
+          glTFPrimitive.material = *glTFMaterialIndex;
+        }
       }
     }
 
@@ -167,6 +169,37 @@ SceneConverter::_convertNodeMeshes(
   }
 
   return convertMeshResult;
+}
+
+std::string SceneConverter::_makeMeshName(const std::vector<fbxsdk::FbxMesh *> &fbx_meshes_) const {
+  assert(!fbx_meshes_.empty());
+
+  std::vector<std::string> parts;
+  ranges::copy(
+      ranges::views::all(fbx_meshes_) |
+          ranges::views::transform([](auto mesh_) { // To UTF8
+            return fbx_string_to_utf8_checked(mesh_->GetName());
+          }) |
+          ranges::views::filter([](const auto &name_) { return !name_.empty(); }), // Remove empties
+      ranges::back_inserter(parts));
+
+  // Sort
+  ranges::sort(parts, [](const auto &name1_, const auto &name2_) { return name1_ < name2_; });
+
+  // Dedup
+  {
+    const auto last = std::unique(parts.begin(), parts.end());
+    parts.erase(last, parts.end());
+  }
+
+  const auto result = std::accumulate(
+      ranges::begin(parts),
+      ranges::end(parts),
+      std::string{},
+      [](std::string &&result_, const std::string &part_) {
+        return result_.empty() ? part_ : (result_ + "+" + part_);
+      });
+  return result;
 }
 
 std::string SceneConverter::_getName(fbxsdk::FbxMesh &fbx_mesh_,
@@ -735,11 +768,10 @@ SceneConverter::_typeVertices(const FbxMeshVertexLayout &vertex_layout_) {
   return bulks;
 }
 
-fbxsdk::FbxSurfaceMaterial *
-SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
+int SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
   const auto nElementMaterialCount = fbx_mesh_.GetElementMaterialCount();
   if (!nElementMaterialCount) {
-    return nullptr;
+    return -1;
   }
 
   if (nElementMaterialCount > 1) {
@@ -750,7 +782,7 @@ SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
       fbx_mesh_.GetControlPointsCount() == 0) {
     _log(Logger::Level::verbose, u8"Seems like there are material elements in "
                                  u8"mesh, but the mesh is empty.");
-    return nullptr;
+    return -1;
   }
 
   for (std::remove_const_t<decltype(nElementMaterialCount)> iMaterialLayer = 0;
@@ -788,11 +820,9 @@ SceneConverter::_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_) {
       continue;
     }
 
-    auto material = fbx_mesh_.GetNode()->GetMaterial(nodeMaterialIndex);
-
-    return material;
+    return nodeMaterialIndex;
   }
 
-  return nullptr;
+  return -1;
 }
 } // namespace bee

@@ -1,4 +1,4 @@
-#include <bee/Converter.Test.h>
+﻿#include <bee/Converter.Test.h>
 #include <doctest/doctest.h>
 #include <fbxsdk.h>
 #include <filesystem>
@@ -226,25 +226,232 @@ TEST_CASE("Mesh") {
                   fx::gltf::Accessor::ComponentType::UnsignedShort);
   }
 
-  SUBCASE("Mesh instancing") {
+  SUBCASE("Mesh naming") {
+    struct Case {
+      std::vector<std::string_view> inputs;
+      std::string_view expectation;
+    };
+
+    const std::vector<Case> cases = {
+        {
+            {"a"}, // inputs
+            "a",   // expectation
+        },
+        {
+            {"a", "a"},
+            "a",
+        },
+        {
+            {"a", "b"},
+            "a+b",
+        },
+        {
+            {"b", "a"},
+            "a+b",
+        },
+        {
+            {""},
+            "",
+        },
+        {
+            {"", ""},
+            "",
+        },
+        {
+            {"", "", ""},
+            "",
+        },
+        {
+            {"a", ""},
+            "a",
+        },
+        {
+            {"b", "", "a", "", "b", "c", "a"}, // inputs
+            "a+b+c",                           // expectation
+        },
+        {
+            {"a", "\U0001F60A", "\U0001F60A"},
+            "\U0001F60A+a",
+        },
+    };
+
     const auto fixture = create_fbx_scene_fixture(
-        [](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+        [&cases](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
           const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
 
-          {
-            const auto mesh =
-                fbxsdk::FbxMesh::Create(scene, "some-shared-mesh");
+          for (const auto iCase : ranges::views::iota(0u, cases.size())) {
+            const auto &theCase = cases[iCase];
+            const auto nodeName = fmt::format("node-{}", iCase);
+            const auto node = fbxsdk::FbxNode::Create(scene, nodeName.c_str());
+            CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+            for (const auto meshName : theCase.inputs) {
+              const auto mesh = fbxsdk::FbxMesh::Create(scene, meshName.data());
+              CHECK_UNARY(node->AddNodeAttribute(mesh));
+            }
+          }
+
+          return *scene;
+        });
+
+    bee::ConvertOptions options;
+    const auto result = bee::_convert_test(fixture.path().u8string(), options);
+
+    CHECK_EQ(result.document().nodes.size(), cases.size());
+    for (const auto iCase : ranges::views::iota(0u, cases.size())) {
+      const auto &theCase = cases[iCase];
+      const auto nodeName = fmt::format("node-{}", iCase);
+      const auto &node = get_gltf_node_by_name(result.document(), nodeName);
+      CHECK_GE(node.mesh, 0);
+      const auto &mesh = result.document().meshes[node.mesh];
+      CHECK_EQ(mesh.name, theCase.expectation);
+    }
+  }
+
+  SUBCASE("Mesh instancing") {
+    SUBCASE("General") {
+      const auto fixture = create_fbx_scene_fixture(
+          [](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+            const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
 
             {
-              const auto node1 =
-                  fbxsdk::FbxNode::Create(scene, "node-ref-to-shared-mesh");
-              CHECK_UNARY(scene->GetRootNode()->AddChild(node1));
-              CHECK_UNARY(node1->AddNodeAttribute(mesh));
+              const auto mesh =
+                  fbxsdk::FbxMesh::Create(scene, "some-shared-mesh");
 
-              const auto node2 =
-                  fbxsdk::FbxNode::Create(scene, "node2-ref-to-shared-mesh");
+              {
+                const auto node1 =
+                    fbxsdk::FbxNode::Create(scene, "node-ref-to-shared-mesh");
+                CHECK_UNARY(scene->GetRootNode()->AddChild(node1));
+                CHECK_UNARY(node1->AddNodeAttribute(mesh));
+
+                const auto node2 =
+                    fbxsdk::FbxNode::Create(scene, "node2-ref-to-shared-mesh");
+                CHECK_UNARY(scene->GetRootNode()->AddChild(node2));
+                CHECK_UNARY(node2->AddNodeAttribute(mesh));
+              }
+
+              {
+                const auto node = fbxsdk::FbxNode::Create(
+                    scene, "node-ref-to-shared-mesh-but-have-more-than-one-mesh");
+                CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+                CHECK_UNARY(node->AddNodeAttribute(mesh));
+                CHECK_UNARY(node->AddNodeAttribute(
+                    fbxsdk::FbxMesh::Create(scene, "some-mesh-2")));
+              }
+
+              {
+                const auto sharedMesh2 =
+                    fbxsdk::FbxMesh::Create(scene, "some-shared-mesh-2");
+
+                {
+                  const auto node = fbxsdk::FbxNode::Create(
+                      scene, "node-ref-to-shared-mesh1-then-shared-mesh2");
+                  CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+                  CHECK_UNARY(node->AddNodeAttribute(mesh));
+                  CHECK_UNARY(node->AddNodeAttribute(sharedMesh2));
+                }
+                {
+                  const auto node = fbxsdk::FbxNode::Create(
+                      scene, "another-node-ref-to-shared-mesh1-then-shared-mesh2");
+                  CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+                  CHECK_UNARY(node->AddNodeAttribute(mesh));
+                  CHECK_UNARY(node->AddNodeAttribute(sharedMesh2));
+                }
+                {
+                  const auto node = fbxsdk::FbxNode::Create(
+                      scene, "another-node-ref-to-shared-mesh2-then-shared-mesh1");
+                  CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+                  CHECK_UNARY(node->AddNodeAttribute(sharedMesh2));
+                  CHECK_UNARY(node->AddNodeAttribute(mesh));
+                }
+              }
+            }
+
+            {
+              auto node1 = fbxsdk::FbxNode::Create(
+                  scene, "node-ref-to-anonymous-mesh-instance");
+              CHECK_UNARY(scene->GetRootNode()->AddChild(node1));
+              auto node2 = fbxsdk::FbxNode::Create(
+                  scene, "node2-ref-to-anonymous-mesh-instance");
               CHECK_UNARY(scene->GetRootNode()->AddChild(node2));
+              auto mesh = fbxsdk::FbxMesh::Create(scene, "");
+              CHECK_UNARY(node1->AddNodeAttribute(mesh));
               CHECK_UNARY(node2->AddNodeAttribute(mesh));
+            }
+
+            return *scene;
+          });
+
+      bee::ConvertOptions options;
+      auto result = bee::_convert_test(fixture.path().u8string(), options);
+
+      CHECK_EQ(result.document().meshes.size(), 4);
+
+      {
+        const auto &node1 =
+            get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh");
+        const auto &node2 =
+            get_gltf_node_by_name(result.document(), "node2-ref-to-shared-mesh");
+        CHECK_EQ(node1.mesh, node2.mesh);
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
+        CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh");
+      }
+
+      {
+        const auto &node1 = get_gltf_node_by_name(result.document(),
+                                                  "node-ref-to-anonymous-mesh-instance");
+        const auto &node2 = get_gltf_node_by_name(result.document(),
+                                                  "node2-ref-to-anonymous-mesh-instance");
+        CHECK_EQ(node1.mesh, node2.mesh);
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
+        CHECK_EQ(result.document().meshes[node1.mesh].name, "");
+      }
+
+      {
+
+        const auto &node1 = get_gltf_node_by_name(result.document(),
+                                                  "node-ref-to-shared-mesh1-then-shared-mesh2");
+        const auto &node2 = get_gltf_node_by_name(result.document(),
+                                                  "another-node-ref-to-shared-mesh1-then-shared-mesh2");
+        const auto &node3 = get_gltf_node_by_name(result.document(),
+                                                  "another-node-ref-to-shared-mesh2-then-shared-mesh1");
+        CHECK_GE(node1.mesh, 0);
+        CHECK_EQ(node1.mesh, node2.mesh);
+        CHECK_EQ(node1.mesh, node3.mesh);
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 3);
+        CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh+some-shared-mesh-2");
+      }
+    }
+
+    SUBCASE("Does not form a instancing case") {
+      const auto fixture = create_fbx_scene_fixture(
+          [](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+            const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
+
+            const auto sharingMesh = fbxsdk::FbxMesh::Create(scene, "some-shared-mesh");
+            const auto exclusiveMesh = fbxsdk::FbxMesh::Create(scene, "some-exclusive-mesh");
+
+            {
+              const auto node =
+                  fbxsdk::FbxNode::Create(scene, "node-ref-to-shared-mesh");
+              CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+              CHECK_UNARY(node->AddNodeAttribute(sharingMesh));
+            }
+
+            {
+              const auto node =
+                  fbxsdk::FbxNode::Create(scene, "node-ref-to-shared-mesh-then-exclusive-mesh");
+              CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+              CHECK_UNARY(node->AddNodeAttribute(sharingMesh));
+              CHECK_UNARY(node->AddNodeAttribute(exclusiveMesh));
+            }
+
+            for (const auto i : ranges::views::iota(0, 2)) {
+              const auto node =
+                  fbxsdk::FbxNode::Create(scene, fmt::format("node{}-ref-to-shared-mesh-with-diff-material", i).c_str());
+              CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+              CHECK_UNARY(node->AddNodeAttribute(sharingMesh));
+              const auto material = fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", i).c_str());
+              CHECK_GE(node->AddMaterial(material), 0);
             }
 
             {
@@ -252,32 +459,191 @@ TEST_CASE("Mesh") {
                   scene,
                   "node-ref-to-shared-mesh-but-have-geometrix-transform");
               CHECK_UNARY(scene->GetRootNode()->AddChild(node));
-              CHECK_UNARY(node->AddNodeAttribute(mesh));
+              CHECK_UNARY(node->AddNodeAttribute(sharingMesh));
               node->SetGeometricTranslation(
                   fbxsdk::FbxNode::EPivotSet::eSourcePivot,
                   fbxsdk::FbxVector4{1., 2., 3.});
             }
 
-            {
-              const auto node = fbxsdk::FbxNode::Create(
-                  scene, "node-ref-to-shared-mesh-but-have-more-than-one-mesh");
+            return *scene;
+          });
+
+      bee::ConvertOptions options;
+      const auto result = bee::_convert_test(fixture.path().u8string(), options);
+
+      CHECK_EQ(result.document().nodes.size(), 5);
+      CHECK_EQ(result.document().meshes.size(), 5);
+
+      {
+        const auto &node =
+            get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh");
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
+        const auto &mesh = result.document().meshes[node.mesh];
+        CHECK_EQ(mesh.name, "some-shared-mesh");
+      }
+
+      {
+        const auto &node =
+            get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh-then-exclusive-mesh");
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
+        const auto &mesh = result.document().meshes[node.mesh];
+        CHECK_EQ(mesh.name, "some-exclusive-mesh+some-shared-mesh");
+      }
+
+      for (const auto i : ranges::views::iota(0, 2)) {
+        const auto &node =
+            get_gltf_node_by_name(result.document(), fmt::format("node{}-ref-to-shared-mesh-with-diff-material", i));
+        CHECK_GE(node.mesh, 0);
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
+        const auto &mesh = result.document().meshes[node.mesh];
+        CHECK_EQ(mesh.name, "some-shared-mesh");
+      }
+
+      {
+        const auto &node =
+            get_gltf_node_by_name(result.document(),
+                                  "node-ref-to-shared-mesh-but-have-geometrix-transform");
+        CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
+        CHECK_EQ(result.document().meshes[node.mesh].name, "some-shared-mesh");
+      }
+    }
+  }
+
+  SUBCASE("Splitting") {
+    SUBCASE("Split an empty mesh") {
+      const auto fixture = create_fbx_scene_fixture(
+          [](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+            const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
+
+            const auto mesh =
+                fbxsdk::FbxMesh::Create(scene, "some-mesh");
+
+            const auto node =
+                fbxsdk::FbxNode::Create(scene, "some-node");
+            CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+            CHECK_UNARY(node->AddNodeAttribute(mesh));
+
+            return *scene;
+          });
+
+      bee::ConvertOptions options;
+      auto result = bee::_convert_test(fixture.path().u8string(), options);
+    }
+
+    SUBCASE("Names of splitted meshes") {
+      const auto run = [](bool preserve_mesh_instances_, bool match_name_names_, bool original_mesh_has_name_) {
+        const auto fixture = create_fbx_scene_fixture(
+            [original_mesh_has_name_](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+              const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
+
+              const auto mesh =
+                  fbxsdk::FbxMesh::Create(scene, original_mesh_has_name_ ? "some-multiple-materials-mesh" : "");
+              mesh->InitControlPoints(4);
+              const auto mat = mesh->CreateElementMaterial();
+              mat->SetReferenceMode(fbxsdk::FbxLayerElement::EReferenceMode::eIndexToDirect);
+              mat->SetMappingMode(fbxsdk::FbxLayerElement::EMappingMode::eByPolygon);
+              mesh->BeginPolygon(0);
+              mesh->AddPolygon(0);
+              mesh->AddPolygon(1);
+              mesh->AddPolygon(2);
+              mesh->EndPolygon();
+              mesh->BeginPolygon(1);
+              mesh->AddPolygon(1);
+              mesh->AddPolygon(2);
+              mesh->AddPolygon(3);
+              mesh->EndPolygon();
+
+              const auto node =
+                  fbxsdk::FbxNode::Create(scene, "some-node");
               CHECK_UNARY(scene->GetRootNode()->AddChild(node));
               CHECK_UNARY(node->AddNodeAttribute(mesh));
-              CHECK_UNARY(node->AddNodeAttribute(
-                  fbxsdk::FbxMesh::Create(scene, "some-mesh-2")));
-            }
-          }
+              for (const auto i : ranges::views::iota(0, 2)) {
+                const auto material = fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", i).c_str());
+                CHECK_GE(node->AddMaterial(material), 0);
+              }
 
-          {
-            auto node1 = fbxsdk::FbxNode::Create(
-                scene, "node-ref-to-anonymous-mesh-instance");
-            CHECK_UNARY(scene->GetRootNode()->AddChild(node1));
-            auto node2 = fbxsdk::FbxNode::Create(
-                scene, "node2-ref-to-anonymous-mesh-instance");
-            CHECK_UNARY(scene->GetRootNode()->AddChild(node2));
-            auto mesh = fbxsdk::FbxMesh::Create(scene, "");
-            CHECK_UNARY(node1->AddNodeAttribute(mesh));
-            CHECK_UNARY(node2->AddNodeAttribute(mesh));
+              return *scene;
+            });
+
+        bee::ConvertOptions options;
+        options.match_mesh_names = match_name_names_;
+        options.preserve_mesh_instances = preserve_mesh_instances_;
+        const auto result = bee::_convert_test(fixture.path().u8string(), options);
+
+        CHECK_EQ(result.document().meshes.size(), 1);
+        const auto &meshName = result.document().meshes.front().name;
+        return meshName;
+      };
+
+      // If --preserve-mesh-instances
+      { // If the mesh has a name, use its name.
+        CHECK_EQ(run(true, true, true), "some-multiple-materials-mesh");
+        CHECK_EQ(run(true, false, true), "some-multiple-materials-mesh");
+        // Otherwise use empty name.
+        CHECK_EQ(run(true, true, false), "");
+        CHECK_EQ(run(true, false, false), "");
+      }
+
+      // Otherwise, if --match-mesh-names
+      {
+        // If the mesh has a name, use its name.
+        CHECK_EQ(run(false, true, true), "some-multiple-materials-mesh");
+        // Otherwise use the node's name.
+        CHECK_EQ(run(false, true, false), "some-node");
+      }
+
+      // Otherwise
+      {
+        {
+          const auto meshName = run(false, false, true);
+          CHECK_UNARY(meshName == "some-node_Material0" || meshName == "some-node_Material1");
+        };
+        {
+          const auto meshName = run(false, false, false);
+          CHECK_UNARY(meshName == "some-node_Material0" || meshName == "some-node_Material1");
+        };
+      }
+    }
+  }
+
+  SUBCASE("Split an sharing mesh") {
+    const auto fixture = create_fbx_scene_fixture(
+        [](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+          const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
+
+          auto materials = std::vector<fbxsdk::FbxSurfaceMaterial *>{};
+          materials.reserve(2);
+          ranges::copy(
+              ranges::views::iota(0, 2) |
+                  ranges::views::transform([&manager_](auto index_) -> fbxsdk::FbxSurfaceMaterial * {
+                    return fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", index_).c_str());
+                  }),
+              ranges::back_inserter(materials));
+
+          const auto mesh =
+              fbxsdk::FbxMesh::Create(scene, "some-multiple-materials-sharing-mesh");
+          mesh->InitControlPoints(4);
+          const auto mat = mesh->CreateElementMaterial();
+          mat->SetReferenceMode(fbxsdk::FbxLayerElement::EReferenceMode::eIndexToDirect);
+          mat->SetMappingMode(fbxsdk::FbxLayerElement::EMappingMode::eByPolygon);
+          mesh->BeginPolygon(0);
+          mesh->AddPolygon(0);
+          mesh->AddPolygon(1);
+          mesh->AddPolygon(2);
+          mesh->EndPolygon();
+          mesh->BeginPolygon(1);
+          mesh->AddPolygon(1);
+          mesh->AddPolygon(2);
+          mesh->AddPolygon(3);
+          mesh->EndPolygon();
+
+          for (const auto i : ranges::views::iota(0, 2)) {
+            const auto node =
+                fbxsdk::FbxNode::Create(scene, fmt::format("node{}-ref-to-shared-mesh", i).c_str());
+            CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+            CHECK_UNARY(node->AddNodeAttribute(mesh));
+            CHECK_GE(node->AddMaterial(materials[0]), 0);
+            CHECK_GE(node->AddMaterial(materials[1]), 0);
           }
 
           return *scene;
@@ -286,42 +652,19 @@ TEST_CASE("Mesh") {
     bee::ConvertOptions options;
     auto result = bee::_convert_test(fixture.path().u8string(), options);
 
-    CHECK_EQ(result.document().meshes.size(), 4);
+    CHECK_EQ(result.document().nodes.size(), 2);
+    CHECK_EQ(result.document().materials.size(), 2);
 
+    CHECK_EQ(result.document().meshes.size(), 1);
     {
-      const auto &node1 =
-          get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh");
-      const auto &node2 =
-          get_gltf_node_by_name(result.document(), "node2-ref-to-shared-mesh");
-      CHECK_EQ(node1.mesh, node2.mesh);
-      CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
-      CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh");
+      const auto &mesh = result.document().meshes.front();
+      CHECK_EQ(mesh.name, "some-multiple-materials-sharing-mesh");
+      CHECK_EQ(mesh.primitives.size(), 2);
     }
 
-    {
+    for (const auto i : ranges::views::iota(0, 2)) {
       const auto &node =
-          get_gltf_node_by_name(result.document(),
-                                "node-ref-to-shared-mesh-but-have-geometrix-transform");
-      CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
-      CHECK_EQ(result.document().meshes[node.mesh].name, "some-shared-mesh");
-    }
-
-    {
-      const auto &node =
-          get_gltf_node_by_name(result.document(),
-                                "node-ref-to-shared-mesh-but-have-more-than-one-mesh");
-      CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
-      CHECK_EQ(result.document().meshes[node.mesh].name, "some-shared-mesh");
-    }
-
-    {
-      const auto &node1 = get_gltf_node_by_name(result.document(),
-                                                "node-ref-to-anonymous-mesh-instance");
-      const auto &node2 = get_gltf_node_by_name(result.document(),
-                                                "node2-ref-to-anonymous-mesh-instance");
-      CHECK_EQ(node1.mesh, node2.mesh);
-      CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
-      CHECK_EQ(result.document().meshes[node1.mesh].name, "");
+          get_gltf_node_by_name(result.document(), fmt::format("node{}-ref-to-shared-mesh", i));
     }
   }
 }
