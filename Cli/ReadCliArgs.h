@@ -7,6 +7,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace beecli {
@@ -18,8 +19,20 @@ struct CliArgs {
   bee::ConvertOptions convertOptions;
 };
 
+struct VersionCommand {
+};
+
+struct HelpCommand {
+  std::string text;
+};
+
+using ParsedCommand = std::variant<
+    CliArgs,
+    VersionCommand,
+    HelpCommand>;
+
 std::optional<std::vector<std::string>>
 getCommandLineArgsU8(int argc_, const char *argv_[]);
 
-std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_);
+std::optional<ParsedCommand> readCliArgs(std::span<std::string_view> args_);
 } // namespace beecli

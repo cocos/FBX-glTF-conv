@@ -8,20 +8,11 @@
 #ifdef _WIN32
 #  include <Windows.h>
 #endif
+#include "./Version.h"
 #include <algorithm>
 #include <bee/polyfills/filesystem.h>
 #include <fmt/format.h>
 #include <optional>
-
-#ifndef FBX_GLTF_CONV_CLI_VERSION
-#  define FBX_GLTF_CONV_CLI_VERSION_STRING ""
-#else
-#  define TO_FBX_GLTF_CONV_CLI_VERSION_STRING(x) #x
-#  define TO_FBX_GLTF_CONV_CLI_VERSION_STRING2(x) TO_FBX_GLTF_CONV_CLI_VERSION_STRING(x)
-#  define FBX_GLTF_CONV_CLI_VERSION_STRING TO_FBX_GLTF_CONV_CLI_VERSION_STRING2(FBX_GLTF_CONV_CLI_VERSION)
-#endif
-
-const std::string version_string = FBX_GLTF_CONV_CLI_VERSION_STRING;
 
 namespace beecli {
 /// <summary>
@@ -147,7 +138,7 @@ fetch_convert_option(const cxxopts::ParseResult &cxxopts_parse_result_,
       cxxopts_parse_result_, convert_options_);
 }
 
-std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
+std::optional<ParsedCommand> readCliArgs(std::span<std::string_view> args_) {
   std::string inputFile;
   std::string outFile;
   std::string fbmDir;
@@ -169,6 +160,10 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
     convert_option_binding_helper<memberPtr>::add_cxx_option(
         options, cliArgs.convertOptions);
   };
+
+  options.add_options()("h,help", "Print this help message.");
+
+  options.add_options()("v,version", "Print version string.");
 
   options.add_options()("input-file", "Input file",
                         cxxopts::value<std::string>());
@@ -276,8 +271,11 @@ std::optional<CliArgs> readCliArgs(std::span<std::string_view> args_) {
     const auto cliParseResult = options.parse(argc, argv);
 
     if (cliParseResult.count("help")) {
-      std::cout << options.help() << std::endl;
-      return {};
+      return HelpCommand{options.help()};
+    }
+
+    if (cliParseResult.count("version")) {
+      return VersionCommand{};
     }
 
     const auto fetch_convert_option =

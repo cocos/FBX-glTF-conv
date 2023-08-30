@@ -1,5 +1,6 @@
 
 #include "ReadCliArgs.h"
+#include "Version.h"
 #include <array>
 #include <bee/Converter.h>
 #include <bee/polyfills/filesystem.h>
@@ -130,10 +131,25 @@ int main(int argc_, const char *argv_[]) {
                    return std::string_view{s_.data(), s_.size()};
                  });
 
-  auto cliOptions = beecli::readCliArgs(argsU8SV);
-  if (!cliOptions) {
+  auto parsedCommand = beecli::readCliArgs(argsU8SV);
+  if (!parsedCommand) {
     return -1;
   }
+
+  if (std::holds_alternative<beecli::HelpCommand>(*parsedCommand)) {
+    const auto &command = std::get<beecli::HelpCommand>(*parsedCommand);
+    std::cout << command.text << std::endl;
+    return 0;
+  }
+
+  if (std::holds_alternative<beecli::VersionCommand>(*parsedCommand)) {
+    const auto &command = std::get<beecli::VersionCommand>(*parsedCommand);
+    std::cout << beecli::version_string << std::endl;
+    return 0;
+  }
+
+  assert(std::holds_alternative<beecli::CliArgs>(*parsedCommand));
+  const auto cliOptions = &std::get<beecli::CliArgs>(*parsedCommand);
 
   if (!cliOptions->fbmDir.empty()) {
     cliOptions->convertOptions.fbmDir = cliOptions->fbmDir;
