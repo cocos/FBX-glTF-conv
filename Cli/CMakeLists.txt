@@ -8,7 +8,7 @@ include ("${CMAKE_CURRENT_LIST_DIR}/../Core/CMakeLists.txt")
 
 # LIB
 
-add_library (FBX-glTF-conv-lib STATIC "${CMAKE_CURRENT_LIST_DIR}/ReadCliArgs.cpp")
+add_library (FBX-glTF-conv-lib STATIC "${CMAKE_CURRENT_LIST_DIR}/ReadCliArgs.cpp" "${CMAKE_CURRENT_LIST_DIR}/Version.cpp")
 
 set_target_properties (FBX-glTF-conv-lib PROPERTIES CXX_STANDARD 20)
 
