@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <fmt/format.h>
 #include <fx/gltf.h>
-#include <ranges>
+#include <range/v3/all.hpp>
 #include <string>
 #include <string_view>
 
@@ -14,7 +14,8 @@ auto create_fbx_scene_fixture(
   const auto manager = fbxsdk::FbxManager::Create();
 
   struct Guard {
-    Guard(fbxsdk::FbxManager &manager_) : _manager(&manager_) {
+    Guard(fbxsdk::FbxManager &manager_)
+        : _manager(&manager_) {
     }
 
     ~Guard() {
@@ -198,6 +199,23 @@ void testIndexUnit(const char *path_,
   CHECK_EQ(indexAccessor.componentType, component_type_);
 }
 
+const auto get_gltf_node_by_name = [](const fx::gltf::Document &gltf_document_,
+                                      std::string_view name_) -> const fx::gltf::Node & {
+  const auto rNode = ranges::find_if(
+      gltf_document_.nodes,
+      [name_](const auto &node_) { return node_.name == name_; });
+  CHECK_NE(rNode, gltf_document_.nodes.end());
+  return *rNode;
+};
+
+const auto count_gltf_mesh_references = [](const fx::gltf::Document &gltf_document_,
+                                           int mesh_index_) {
+  return ranges::count_if(gltf_document_.nodes,
+                          [mesh_index_](const auto &node_) {
+                            return node_.mesh == mesh_index_;
+                          });
+};
+
 TEST_CASE("Mesh") {
   SUBCASE("Index unit") {
     // test 65538 index
@@ -270,56 +288,39 @@ TEST_CASE("Mesh") {
 
     CHECK_EQ(result.document().meshes.size(), 4);
 
-    const auto getNodeByName = [](fx::gltf::Document &gltf_document_,
-                                  std::string_view name_) -> fx::gltf::Node & {
-      const auto rNode = std::ranges::find_if(
-          gltf_document_.nodes,
-          [name_](const auto &node_) { return node_.name == name_; });
-      CHECK_NE(rNode, gltf_document_.nodes.end());
-      return *rNode;
-    };
-
-    const auto countMeshReferences = [](fx::gltf::Document &gltf_document_,
-                                        int mesh_index_) {
-      return std::ranges::count_if(gltf_document_.nodes,
-                                   [mesh_index_](const auto &node_) {
-                                     return node_.mesh == mesh_index_;
-                                   });
-    };
-
     {
       const auto &node1 =
-          getNodeByName(result.document(), "node-ref-to-shared-mesh");
+          get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh");
       const auto &node2 =
-          getNodeByName(result.document(), "node2-ref-to-shared-mesh");
+          get_gltf_node_by_name(result.document(), "node2-ref-to-shared-mesh");
       CHECK_EQ(node1.mesh, node2.mesh);
-      CHECK_EQ(countMeshReferences(result.document(), node1.mesh), 2);
+      CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
       CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh");
     }
 
     {
       const auto &node =
-          getNodeByName(result.document(),
-                        "node-ref-to-shared-mesh-but-have-geometrix-transform");
-      CHECK_EQ(countMeshReferences(result.document(), node.mesh), 1);
+          get_gltf_node_by_name(result.document(),
+                                "node-ref-to-shared-mesh-but-have-geometrix-transform");
+      CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
       CHECK_EQ(result.document().meshes[node.mesh].name, "some-shared-mesh");
     }
 
     {
       const auto &node =
-          getNodeByName(result.document(),
-                        "node-ref-to-shared-mesh-but-have-more-than-one-mesh");
-      CHECK_EQ(countMeshReferences(result.document(), node.mesh), 1);
+          get_gltf_node_by_name(result.document(),
+                                "node-ref-to-shared-mesh-but-have-more-than-one-mesh");
+      CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
       CHECK_EQ(result.document().meshes[node.mesh].name, "some-shared-mesh");
     }
 
     {
-      const auto &node1 = getNodeByName(result.document(),
-                                        "node-ref-to-anonymous-mesh-instance");
-      const auto &node2 = getNodeByName(result.document(),
-                                        "node2-ref-to-anonymous-mesh-instance");
+      const auto &node1 = get_gltf_node_by_name(result.document(),
+                                                "node-ref-to-anonymous-mesh-instance");
+      const auto &node2 = get_gltf_node_by_name(result.document(),
+                                                "node2-ref-to-anonymous-mesh-instance");
       CHECK_EQ(node1.mesh, node2.mesh);
-      CHECK_EQ(countMeshReferences(result.document(), node1.mesh), 2);
+      CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 2);
       CHECK_EQ(result.document().meshes[node1.mesh].name, "");
     }
   }

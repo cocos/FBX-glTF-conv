@@ -46,6 +46,10 @@ public:
     return _glTFDocument;
   }
 
+  const fx::gltf::Document &document() const {
+    return _glTFDocument;
+  }
+
   BuildResult build(BuildOptions options = {});
 
   const BufferViewInfo createBufferView(std::uint32_t byte_length_,
@@ -108,7 +112,8 @@ public:
 
   void requireExtension(std::string_view extension_name_);
 
-  template <typename T> struct GLTFDocumentMemberPtrValueType {};
+  template <typename T>
+  struct GLTFDocumentMemberPtrValueType {};
   template <typename T>
   struct GLTFDocumentMemberPtrValueType<T fx::gltf::Document::*> {
     using type = typename T::value_type;
