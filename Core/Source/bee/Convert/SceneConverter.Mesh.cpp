@@ -197,7 +197,7 @@ std::string SceneConverter::_makeMeshName(const std::vector<fbxsdk::FbxMesh *> &
       ranges::end(parts),
       std::string{},
       [](std::string &&result_, const std::string &part_) {
-        return result_.empty() ? part_ : (result_ + ", " + part_);
+        return result_.empty() ? part_ : (result_ + "+" + part_);
       });
   return result;
 }

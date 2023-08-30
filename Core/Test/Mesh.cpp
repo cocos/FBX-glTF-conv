@@ -243,11 +243,11 @@ TEST_CASE("Mesh") {
         },
         {
             {"a", "b"},
-            "a, b",
+            "a+b",
         },
         {
             {"b", "a"},
-            "a, b",
+            "a+b",
         },
         {
             {""},
@@ -267,11 +267,11 @@ TEST_CASE("Mesh") {
         },
         {
             {"b", "", "a", "", "b", "c", "a"}, // inputs
-            "a, b, c",                         // expectation
+            "a+b+c",                           // expectation
         },
         {
             {"a", "\U0001F60A", "\U0001F60A"},
-            "\U0001F60A, a",
+            "\U0001F60A+a",
         },
     };
 
@@ -418,7 +418,7 @@ TEST_CASE("Mesh") {
         CHECK_EQ(node1.mesh, node2.mesh);
         CHECK_EQ(node1.mesh, node3.mesh);
         CHECK_EQ(count_gltf_mesh_references(result.document(), node1.mesh), 3);
-        CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh, some-shared-mesh-2");
+        CHECK_EQ(result.document().meshes[node1.mesh].name, "some-shared-mesh+some-shared-mesh-2");
       }
     }
 
@@ -487,7 +487,7 @@ TEST_CASE("Mesh") {
             get_gltf_node_by_name(result.document(), "node-ref-to-shared-mesh-then-exclusive-mesh");
         CHECK_EQ(count_gltf_mesh_references(result.document(), node.mesh), 1);
         const auto &mesh = result.document().meshes[node.mesh];
-        CHECK_EQ(mesh.name, "some-exclusive-mesh, some-shared-mesh");
+        CHECK_EQ(mesh.name, "some-exclusive-mesh+some-shared-mesh");
       }
 
       for (const auto i : ranges::views::iota(0, 2)) {
