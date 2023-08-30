@@ -81,12 +81,12 @@ struct ConvertOptions {
   bool match_mesh_names = true;
 
   /// <summary>
-  /// Whether to disable mesh instancing.
+  /// Whether to preserve mesh instances.
   /// </summary>
   /// <default>
-  /// false
+  /// true
   /// </default>
-  bool no_mesh_instancing = false;
+  bool preserve_mesh_instances = true;
 
   float animation_position_error_multiplier = 1e-5f;
 

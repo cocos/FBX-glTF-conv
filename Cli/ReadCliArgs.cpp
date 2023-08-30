@@ -72,13 +72,13 @@ template <auto MemberPtr>
 struct ConvertOptionBindingTrait {};
 
 template <>
-struct ConvertOptionBindingTrait<&bee::ConvertOptions::no_mesh_instancing> {
-  constexpr static auto name = "no-mesh-instancing";
+struct ConvertOptionBindingTrait<&bee::ConvertOptions::preserve_mesh_instances> {
+  constexpr static auto name = "preserve-mesh-instances";
   constexpr static auto description =
-      "Whether to disable mesh instancing. "
+      "Whether to preserve mesh instances. "
       "By default, if a mesh is shared by multi nodes. They reference to the "
       "same mesh.";
-  constexpr static auto default_value = "false";
+  constexpr static auto default_value = "true";
 };
 
 template <>
@@ -199,7 +199,7 @@ std::optional<ParsedCommand> readCliArgs(std::span<std::string_view> args_) {
       cxxopts::value<bool>()->default_value("true"));
 
   add_cxx_option
-      .template operator()<&bee::ConvertOptions::no_mesh_instancing>();
+      .template operator()<&bee::ConvertOptions::preserve_mesh_instances>();
 
   options.add_options()("match-mesh-names",
                         "Prefer mesh names "
@@ -320,7 +320,7 @@ std::optional<ParsedCommand> readCliArgs(std::span<std::string_view> args_) {
     }
 
     fetch_convert_option
-        .template operator()<&bee::ConvertOptions::no_mesh_instancing>();
+        .template operator()<&bee::ConvertOptions::preserve_mesh_instances>();
 
     if (cliParseResult.count("match-mesh-names")) {
       cliArgs.convertOptions.match_mesh_names =
