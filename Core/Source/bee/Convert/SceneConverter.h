@@ -4,6 +4,8 @@
 #include <bee/Convert/FbxMeshVertexLayout.h>
 #include <bee/Convert/GLTFSamplerHash.h>
 #include <bee/Convert/NeutralType.h>
+#include <bee/Convert/fbxsdk/MeshInstancingKey.h>
+#include <bee/Convert/fbxsdk/SplitMeshByMaterial.h>
 #include <bee/Converter.h>
 #include <bee/GLTFBuilder.h>
 #include <bee/GLTFUtilities.h>
@@ -268,7 +270,8 @@ private:
       _textureMap;
   std::unordered_map<const fbxsdk::FbxNode *, FbxNodeDumpMeta> _nodeDumpMetaMap;
   std::optional<fbxsdk::FbxDouble> _unitScaleFactor = 1.0;
-  std::unordered_map<fbxsdk::FbxMesh*, ConvertMeshResult> _meshInstanceMap;
+  std::unordered_map<MeshInstancingKey, ConvertMeshResult> _meshInstanceMap;
+  SplitMeshesResult _splitMeshesResult;
 
   inline fbxsdk::FbxVector4
   _applyUnitScaleFactorV3(const fbxsdk::FbxVector4 &v_) const {
@@ -328,6 +331,8 @@ private:
                      const std::vector<fbxsdk::FbxMesh *> &fbx_meshes_,
                      fbxsdk::FbxNode &fbx_node_);
 
+  std::string _makeMeshName(const std::vector<fbxsdk::FbxMesh *> &fbx_meshes_) const;
+
   std::string _getName(fbxsdk::FbxMesh &fbx_mesh_, fbxsdk::FbxNode &fbx_node_);
 
   std::tuple<fbxsdk::FbxMatrix, fbxsdk::FbxMatrix>
@@ -358,7 +363,7 @@ private:
   std::list<VertexBulk>
   _typeVertices(const FbxMeshVertexLayout &vertex_layout_);
 
-  fbxsdk::FbxSurfaceMaterial *_getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_);
+  int _getTheUniqueMaterial(fbxsdk::FbxMesh &fbx_mesh_);
 
   /// <summary>
   /// Things get even more complicated if there are more than one mesh attached to a node.

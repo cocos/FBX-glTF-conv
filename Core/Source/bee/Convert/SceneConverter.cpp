@@ -1,9 +1,11 @@
 
+#include "./fbxsdk/SplitMeshByMaterial.h"
 #include "./fbxsdk/String.h"
 #include <bee/Convert/ConvertError.h>
 #include <bee/Convert/SceneConverter.h>
 #include <bee/Convert/fbxsdk/Spreader.h>
 #include <fmt/format.h>
+#include <range/v3/all.hpp>
 
 namespace bee {
 /// <summary>
@@ -128,11 +130,17 @@ void SceneConverter::_prepareScene() {
 
   // Save Original mesh name
   _traverseNodes(_fbxScene.GetRootNode());
+
   // Trianglute the whole scene
   _fbxGeometryConverter.Triangulate(&_fbxScene, true);
 
   // Split meshes per material
-  _fbxGeometryConverter.SplitMeshesPerMaterial(&_fbxScene, true);
+  _splitMeshesResult = split_meshes_per_material(_fbxScene, _fbxGeometryConverter);
+  if (_options.verbose) {
+    for (const auto &splitItem : _splitMeshesResult) {
+      _log(Logger::Level::verbose, fmt::format("Splitted {} into {}", splitItem.first->GetNameWithNameSpacePrefix(), splitItem.second->GetNameWithNameSpacePrefix()));
+    }
+  }
 }
 
 void SceneConverter::_traverseNodes(FbxNode *node) {
@@ -371,8 +379,19 @@ void SceneConverter::_convertNode(fbxsdk::FbxNode &fbx_node_) {
   }
 
   if (!fbxMeshes.empty()) {
-    auto convertMeshResult =
-        _convertNodeMeshes(nodeBumpData, fbxMeshes, fbx_node_);
+    std::vector<fbxsdk::FbxMesh *> splittedMeshes;
+    splittedMeshes.reserve(fbxMeshes.size());
+    for (const auto mesh : fbxMeshes) {
+      const auto splitted = _splitMeshesResult.equal_range(mesh);
+      if (splitted.first != splitted.second) {
+        std::transform(splitted.first, splitted.second, std::back_inserter(splittedMeshes), [](auto kv_) { return std::get<1>(kv_); });
+      } else {
+        splittedMeshes.push_back(mesh);
+      }
+    }
+
+    const auto convertMeshResult =
+        _convertNodeMeshes(nodeBumpData, splittedMeshes, fbx_node_);
     if (convertMeshResult) {
       glTFNode.mesh = convertMeshResult->glTFMeshIndex;
       if (convertMeshResult->glTFSkinIndex) {
