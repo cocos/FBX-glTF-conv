@@ -529,6 +529,81 @@ TEST_CASE("Mesh") {
       bee::ConvertOptions options;
       auto result = bee::_convert_test(fixture.path().u8string(), options);
     }
+
+    SUBCASE("Names of splitted meshes") {
+      const auto run = [](bool preserve_mesh_instances_, bool match_name_names_, bool original_mesh_has_name_) {
+        const auto fixture = create_fbx_scene_fixture(
+            [original_mesh_has_name_](fbxsdk::FbxManager &manager_) -> fbxsdk::FbxScene & {
+              const auto scene = fbxsdk::FbxScene::Create(&manager_, "myScene");
+
+              const auto mesh =
+                  fbxsdk::FbxMesh::Create(scene, original_mesh_has_name_ ? "some-multiple-materials-mesh" : "");
+              mesh->InitControlPoints(4);
+              const auto mat = mesh->CreateElementMaterial();
+              mat->SetReferenceMode(fbxsdk::FbxLayerElement::EReferenceMode::eIndexToDirect);
+              mat->SetMappingMode(fbxsdk::FbxLayerElement::EMappingMode::eByPolygon);
+              mesh->BeginPolygon(0);
+              mesh->AddPolygon(0);
+              mesh->AddPolygon(1);
+              mesh->AddPolygon(2);
+              mesh->EndPolygon();
+              mesh->BeginPolygon(1);
+              mesh->AddPolygon(1);
+              mesh->AddPolygon(2);
+              mesh->AddPolygon(3);
+              mesh->EndPolygon();
+
+              const auto node =
+                  fbxsdk::FbxNode::Create(scene, "some-node");
+              CHECK_UNARY(scene->GetRootNode()->AddChild(node));
+              CHECK_UNARY(node->AddNodeAttribute(mesh));
+              for (const auto i : ranges::views::iota(0, 2)) {
+                const auto material = fbxsdk::FbxSurfacePhong::Create(&manager_, fmt::format("some-material-{}", i).c_str());
+                CHECK_GE(node->AddMaterial(material), 0);
+              }
+
+              return *scene;
+            });
+
+        bee::ConvertOptions options;
+        options.match_mesh_names = match_name_names_;
+        options.preserve_mesh_instances = preserve_mesh_instances_;
+        const auto result = bee::_convert_test(fixture.path().u8string(), options);
+
+        CHECK_EQ(result.document().meshes.size(), 1);
+        const auto &meshName = result.document().meshes.front().name;
+        return meshName;
+      };
+
+      // If --preserve-mesh-instances
+      { // If the mesh has a name, use its name.
+        CHECK_EQ(run(true, true, true), "some-multiple-materials-mesh");
+        CHECK_EQ(run(true, false, true), "some-multiple-materials-mesh");
+        // Otherwise use empty name.
+        CHECK_EQ(run(true, true, false), "");
+        CHECK_EQ(run(true, false, false), "");
+      }
+
+      // Otherwise, if --match-mesh-names
+      {
+        // If the mesh has a name, use its name.
+        CHECK_EQ(run(false, true, true), "some-multiple-materials-mesh");
+        // Otherwise use the node's name.
+        CHECK_EQ(run(false, true, false), "some-node");
+      }
+
+      // Otherwise
+      {
+        {
+          const auto meshName = run(false, false, true);
+          CHECK_UNARY(meshName == "some-node_Material0" || meshName == "some-node_Material1");
+        };
+        {
+          const auto meshName = run(false, false, false);
+          CHECK_UNARY(meshName == "some-node_Material0" || meshName == "some-node_Material1");
+        };
+      }
+    }
   }
 
   SUBCASE("Split an sharing mesh") {

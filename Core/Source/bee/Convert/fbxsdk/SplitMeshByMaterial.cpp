@@ -85,7 +85,6 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     }
 
     for (const auto split : newlyAdded) {
-      split->SetName(mesh->GetName());
       for (const auto node :
            ranges::iota_view<int, int>(0, split->GetNodeCount()) |
                ranges::views::reverse |

@@ -141,6 +141,11 @@ void SceneConverter::_prepareScene() {
       _log(Logger::Level::verbose, fmt::format("Splitted {} into {}", splitItem.first->GetNameWithNameSpacePrefix(), splitItem.second->GetNameWithNameSpacePrefix()));
     }
   }
+  if (const auto shouldFixSplittedMeshesName = _options.preserve_mesh_instances || _options.match_mesh_names) {
+    for (const auto &splitItem : _splitMeshesResult) {
+      splitItem.second->SetName(splitItem.first->GetName());
+    }
+  }
 }
 
 void SceneConverter::_traverseNodes(FbxNode *node) {
