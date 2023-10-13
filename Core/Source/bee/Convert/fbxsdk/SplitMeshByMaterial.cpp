@@ -9,28 +9,31 @@
 
 namespace bee {
 namespace {
-void collect_meshes(fbxsdk::FbxNode &node_, std::unordered_set<fbxsdk::FbxMesh *> &result_) {
+void collect_meshes(fbxsdk::FbxNode &node_, std::vector<fbxsdk::FbxMesh *> &result_) {
   for (const auto iNodeAttribute : ranges::iota_view<int, int>(0, node_.GetNodeAttributeCount())) {
     const auto nodeAttribute = node_.GetNodeAttributeByIndex(iNodeAttribute);
     switch (const auto attributeType = nodeAttribute->GetAttributeType()) {
-    case fbxsdk::FbxNodeAttribute::EType::eMesh:
-      result_.emplace(static_cast<fbxsdk::FbxMesh *>(nodeAttribute));
-      break;
+    case fbxsdk::FbxNodeAttribute::EType::eMesh: {
+      const auto mesh = static_cast<fbxsdk::FbxMesh *>(nodeAttribute);
+      if (ranges::find(result_, mesh) == result_.end()) {
+        result_.emplace_back(mesh);
+      }
+    } break;
     default:
       break;
     }
   }
 }
 
-void collect_meshes_recurse(fbxsdk::FbxNode &node_, std::unordered_set<fbxsdk::FbxMesh *> &result_) {
+void collect_meshes_recurse(fbxsdk::FbxNode &node_, std::vector<fbxsdk::FbxMesh *> &result_) {
   collect_meshes(node_, result_);
   for (const auto iChild : ranges::iota_view<int, int>(0, node_.GetChildCount())) {
     collect_meshes_recurse(*node_.GetChild(iChild), result_);
   }
 }
 
-std::unordered_set<fbxsdk::FbxMesh *> collect_meshes(fbxsdk::FbxScene &scene_) {
-  std::unordered_set<fbxsdk::FbxMesh *> result;
+std::vector<fbxsdk::FbxMesh *> collect_meshes(fbxsdk::FbxScene &scene_) {
+  std::vector<fbxsdk::FbxMesh *> result;
   collect_meshes_recurse(*scene_.GetRootNode(), result);
   return result;
 }
@@ -50,12 +53,12 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     const auto firstNode = mesh->GetNode(0);
     assert(firstNode);
 
-    std::unordered_set<fbxsdk::FbxMesh *> meshesOnThisNodeBefore;
+    std::vector<fbxsdk::FbxMesh *> meshesOnThisNodeBefore;
     collect_meshes(*firstNode, meshesOnThisNodeBefore);
 
     const auto success = geometry_converter_.SplitMeshPerMaterial(mesh, false);
 
-    std::unordered_set<fbxsdk::FbxMesh *> meshesOnThisNodeAfter;
+    std::vector<fbxsdk::FbxMesh *> meshesOnThisNodeAfter;
     collect_meshes(*firstNode, meshesOnThisNodeAfter);
 
     {
@@ -63,7 +66,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
       ranges::copy_if(
           meshesOnThisNodeBefore,
           ranges::back_inserter(removed),
-          [&meshesOnThisNodeAfter](auto mesh_) { return meshesOnThisNodeAfter.find(mesh_) == meshesOnThisNodeAfter.end(); });
+          [&meshesOnThisNodeAfter](auto mesh_) { return ranges::find(meshesOnThisNodeAfter, mesh_) == meshesOnThisNodeAfter.end(); });
       assert(removed.empty() && "fbxsdk did something wrong?");
     }
 
@@ -78,7 +81,7 @@ SplitMeshesResult split_meshes_per_material(fbxsdk::FbxScene &scene_, fbxsdk::Fb
     ranges::copy_if(
         meshesOnThisNodeAfter,
         ranges::back_inserter(newlyAdded),
-        [&meshesOnThisNodeBefore](auto mesh_) { return meshesOnThisNodeBefore.find(mesh_) == meshesOnThisNodeBefore.end(); });
+        [&meshesOnThisNodeBefore](auto mesh_) { return ranges::find(meshesOnThisNodeBefore, mesh_) == meshesOnThisNodeBefore.end(); });
     if (newlyAdded.empty()) {
       assert(meshesOnThisNodeBefore == meshesOnThisNodeAfter && "fbxsdk did something wrong?");
       continue;
