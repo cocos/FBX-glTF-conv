@@ -4,16 +4,16 @@ on: [pull_request]
 
 jobs:
   test:
-    name: Test
+    name: Test on Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
         name: Checkout
   
       - name: Build
-        shell: pwsh
+        shell: bash
         run: |
-          CI/GitHubBuild.ps1
+          CI/build.sh
       
       - name: Run Core Test
         shell: pwsh
@@ -33,10 +33,12 @@ jobs:
         name: Checkout
   
       - name: Build
-        shell: pwsh
+        uses: actions/setup-xcode@v3
+        with: 
+          version: '14.3.1'
+        shell: bash
         run: |
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
-          CI/GitHubBuild.ps1
+          CI/build.sh
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
@@ -60,16 +62,4 @@ jobs:
            ls out
            chmod 777 ./out/Release/bin/FBX-glTF-conv
            ./out/Release/bin/FBX-glTF-conv --help
-
-  test_on_ubuntu:
-    name: Test on Ubuntu
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        name: Checkout
-  
-      - name: Build
-        shell: pwsh
-        run: |
-          CI/GitHubBuild.ps1
 
