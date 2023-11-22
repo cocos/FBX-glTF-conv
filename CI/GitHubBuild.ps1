@@ -137,15 +137,29 @@ foreach ($cmakeBuildType in $cmakeBuildTypes) {
 
     $defineVersion = if ($Version) { "-DFBX_GLTF_CONV_CLI_VERSION=$Version" } else { "" }
 
-    cmake `
-    -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
-    "-DCMAKE_BUILD_TYPE=$cmakeBuildType" `
-    -DCMAKE_INSTALL_PREFIX="$cmakeInstallPrefix/$cmakeBuildType" `
-    -DFbxSdkHome:STRING="$fbxSdkHome" `
-    "-DPOLYFILLS_STD_FILESYSTEM=$polyfillsStdFileSystem" `
-    "$defineVersion" `
-    "-S." `
-    "-B$cmakeBuildDir"
+    if ($IsMacOS) {
+        cmake `
+        -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
+        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" `
+        "-DCMAKE_BUILD_TYPE=$cmakeBuildType" `
+        -DCMAKE_INSTALL_PREFIX="$cmakeInstallPrefix/$cmakeBuildType" `
+        -DFbxSdkHome:STRING="$fbxSdkHome" `
+        "-DPOLYFILLS_STD_FILESYSTEM=$polyfillsStdFileSystem" `
+        "$defineVersion" `
+        "-S." `
+        "-B$cmakeBuildDir"
+    }
+    else {
+        cmake `
+        -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" `
+        "-DCMAKE_BUILD_TYPE=$cmakeBuildType" `
+        -DCMAKE_INSTALL_PREFIX="$cmakeInstallPrefix/$cmakeBuildType" `
+        -DFbxSdkHome:STRING="$fbxSdkHome" `
+        "-DPOLYFILLS_STD_FILESYSTEM=$polyfillsStdFileSystem" `
+        "$defineVersion" `
+        "-S." `
+        "-B$cmakeBuildDir"
+    }
 
     # The build type really matters:
     # https://stackoverflow.com/questions/24460486/cmake-build-type-is-not-being-used-in-cmakelists-txt

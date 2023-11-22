@@ -37,8 +37,8 @@ jobs:
         with:
           tag_name: ${{steps.get_release_info.outputs.tag_name}}
           release_name: ${{steps.get_release_info.outputs.release_name}}
-          draft: true
-          prerelease: true
+          draft: false
+          prerelease: false
 
   release_windows_job:
     name: Release Windows
@@ -62,8 +62,8 @@ jobs:
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build
-        run: CI/GitHubBuild.ps1 -Version "${{ needs.get_release_info_job.outputs.version }}" -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
-        shell: pwsh
+        run: CI/build.sh -Version "${{ needs.get_release_info_job.outputs.version }}" -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
+        shell: bash
       - id: upload-release-asset
         name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -97,43 +97,8 @@ jobs:
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build
-        run: CI/GitHubBuild.ps1 -Version "${{ needs.get_release_info_job.outputs.version }}" -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
-        shell: pwsh
-      - id: upload-release-asset
-        name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.get_release_info_job.outputs.release_upload_url }}
-          asset_path: ${{ steps.get_this_release_info.outputs.artifact_path }}
-          asset_name: ${{ steps.get_this_release_info.outputs.artifact_path }}
-          asset_content_type: application/zip
-
-  release_ubuntu_job:
-    name: Release Ubuntu
-    runs-on: ubuntu-latest
-    needs: get_release_info_job
-    steps:
-      - name: Print Debug Info
-        shell: pwsh
-        run: |
-          Write-Host @"
-          Version: ${{ needs.get_release_info_job.outputs.version }}
-          Release Upload URL: ${{ needs.get_release_info_job.outputs.release_upload_url }}
-          "@
-      - uses: actions/checkout@v2
-      - id: get_this_release_info
-        shell: pwsh
-        run: |
-          #Requires -Version "6.1"
-          $osName = if ($IsWindows) { "win32" } elseif ($IsLinux) { "ubuntu" } else { "darwin" }
-          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.zip"
-          Write-Output "::set-output name=artifact_path::$artifactPath"
-      - id: build
-        name: Build
-        run: CI/GitHubBuild.ps1 -Version "${{ needs.get_release_info_job.outputs.version }}" -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
-        shell: pwsh
+        run: CI/build.sh -Version "${{ needs.get_release_info_job.outputs.version }}" -ArtifactPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
+        shell: bash
       - id: upload-release-asset
         name: Upload Release Asset
         uses: actions/upload-release-asset@v1

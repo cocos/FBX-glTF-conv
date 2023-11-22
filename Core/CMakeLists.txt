@@ -135,8 +135,8 @@ target_include_directories(BeeCore PRIVATE ${CPPCODEC_INCLUDE_DIRS})
 find_package(range-v3 CONFIG REQUIRED)
 target_link_libraries(BeeCore PRIVATE range-v3)
 
-find_package(utf8cpp CONFIG REQUIRED)
-target_link_libraries(BeeCore PRIVATE utf8cpp)
+#find_package(utf8cpp CONFIG REQUIRED)
+#target_link_libraries(BeeCore PRIVATE utf8cpp)
 
 install (TARGETS BeeCore DESTINATION "bin")
 install (FILES $<TARGET_LINKER_FILE:BeeCore> DESTINATION "lib" OPTIONAL)
