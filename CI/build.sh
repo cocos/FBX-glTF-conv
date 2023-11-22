@@ -202,7 +202,7 @@ runCMake() {
             -DVCPKG_TARGET_TRIPLET="uni-osx" \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DCMAKE_BUILD_TYPE="${buildType}" \
-            -DCMAKE_INSTALL_PREFIX="${cmakeInstallPrefix/$buildType}" \
+            -DCMAKE_INSTALL_PREFIX="${cmakeInstallPrefix}/${buildType}" \
             -DFbxSdkHome:STRING="${fbxSdkHome}" \
             -DPOLYFILLS_STD_FILESYSTEM="${polyfillsStdFileSystem}" \
             "${defineVersion}" \
@@ -242,7 +242,6 @@ build() {
     fi
     
     if [ -n "$ArtifactPath" ]; then
-        # zip -r $ArtifactPath $cmakeInstallPrefix
         gzip -cr $cmakeInstallPrefix > $ArtifactPath
     fi
 }
