@@ -30,12 +30,14 @@ jobs:
     runs-on: macos-11
     steps:
       - uses: actions/checkout@v2
-        name: Checkout
-  
-      - name: Build
+        name: 
+        
+      - name: Set up Xcode
         uses: actions/setup-xcode@v3
         with: 
           version: '14.3.1'
+  
+      - name: Build
         shell: bash
         run: |
           CI/build.sh
