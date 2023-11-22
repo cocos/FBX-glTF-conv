@@ -1,7 +1,7 @@
 
 #include "./String.h"
 #define UTF_CPP_CPLUSPLUS 201703L
-#include "utf8.h"
+#include <utf8cpp/utf8.h>
 #include <string_view>
 
 namespace bee {

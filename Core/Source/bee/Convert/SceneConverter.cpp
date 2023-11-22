@@ -138,7 +138,7 @@ void SceneConverter::_prepareScene() {
   _splitMeshesResult = split_meshes_per_material(_fbxScene, _fbxGeometryConverter);
   if (_options.verbose) {
     for (const auto &splitItem : _splitMeshesResult) {
-      _log(Logger::Level::verbose, fmt::format("Splitted {} into {}", splitItem.first->GetNameWithNameSpacePrefix(), splitItem.second->GetNameWithNameSpacePrefix()));
+      _log(Logger::Level::verbose, fmt::format("Splitted {} into {}", splitItem.first->GetNameWithNameSpacePrefix().Buffer(), splitItem.second->GetNameWithNameSpacePrefix().Buffer()));
     }
   }
   if (const auto shouldFixSplittedMeshesName = _options.preserve_mesh_instances || _options.match_mesh_names) {

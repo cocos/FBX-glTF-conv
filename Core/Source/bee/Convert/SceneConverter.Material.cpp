@@ -687,7 +687,7 @@ std::optional<GLTFBuilder::XXIndex> SceneConverter::_convertUnknownMaterial(
       _log(Logger::Level::verbose,
            fmt::format(
                "Material property {} is invalid: can only reference to texture",
-               fbx_property_.GetHierarchicalName()));
+               fbx_property_.GetHierarchicalName().Buffer()));
       return {};
     } else if (propertyDataType == fbxsdk::FbxCompoundDT) {
       return dumpCompoundProperty(fbx_property_);
@@ -733,7 +733,7 @@ Json SceneConverter::_dumpMaterialProperties(
       _log(Logger::Level::verbose,
            fmt::format("Material property {} connected with multiple textures, "
                        "which we can not processed now.",
-                       fbx_property_.GetHierarchicalName()));
+                       fbx_property_.GetHierarchicalName().Buffer()));
       return {};
     }
 
