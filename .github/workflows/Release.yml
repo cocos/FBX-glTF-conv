@@ -58,7 +58,7 @@ jobs:
         run: |
           #Requires -Version "6.1"
           $osName = if ($IsWindows) { "win32" } elseif ($IsLinux) { "ubuntu" } else { "darwin" }
-          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.zip"
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.tgz"
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build
@@ -93,7 +93,7 @@ jobs:
         run: |
           #Requires -Version "6.1"
           $osName = if ($IsWindows) { "win32" } elseif ($IsLinux) { "ubuntu" } else { "darwin" }
-          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.zip"
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-$osName.tgz"
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build
@@ -127,7 +127,7 @@ jobs:
         shell: pwsh
         run: |
           #Requires -Version "6.1"
-          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-types.zip"
+          $artifactPath = "FBX-glTF-conv-${{ needs.get_release_info_job.outputs.version }}-types.tgz"
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build

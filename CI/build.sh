@@ -242,7 +242,7 @@ build() {
     fi
     
     if [ -n "$ArtifactPath" ]; then
-        gzip -cr $cmakeInstallPrefix > $ArtifactPath
+        tar -czvf $ArtifactPath -C $cmakeInstallPrefix .
     fi
 }
 
