@@ -131,8 +131,8 @@ jobs:
           Write-Output "::set-output name=artifact_path::$artifactPath"
       - id: build
         name: Build
-        run: Compress-Archive -Path "types\*" -DestinationPath "${{ steps.get_this_release_info.outputs.artifact_path }}"
-        shell: pwsh
+        run: tar -czvf "${{ steps.get_this_release_info.outputs.artifact_path }}" -C types . 
+        shell: bash
       - id: upload-release-asset
         name: Upload Release Asset
         uses: actions/upload-release-asset@v1
