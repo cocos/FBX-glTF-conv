@@ -191,3 +191,4 @@ jobs:
           token: ${{ secrets.NPM_PUBLISH_FOR_PUBLIC_REPO }}
           registry: "https://registry.npmjs.org"
           package: publish
+          access: public
